@@ -1,0 +1,254 @@
+# Agent Configuration for Multi-Agent Scheduler
+# Defines agent capabilities, selection strategy, and performance tuning
+
+version: "1.0"
+
+# =============================================================================
+# Agent Definitions
+# =============================================================================
+agents:
+  # Claude - Best for complex reasoning and system design
+  claude:
+    enabled: true
+    cli_command: "claude"
+    description: "Claude Sonnet 4 - Complex reasoning and system design"
+
+    # Capability scores (0-100)
+    capabilities:
+      complex_reasoning: 95
+      code_generation: 85
+      speed: 60
+      documentation: 80
+      context_window: 200000
+
+    # Task type weights (higher = more suitable)
+    task_type_weights:
+      analysis: 100      # Best for analysis tasks
+      coding: 85         # Good for coding, but not specialized
+      creative: 90       # Good for creative tasks
+      general: 80        # Good general purpose
+      simple: 50         # Overkill for simple tasks
+
+    # Model-specific strengths
+    strengths:
+      - "system_design"
+      - "architecture_planning"
+      - "debugging"
+      - "long_context_understanding"
+      - "complex_algorithms"
+
+    # Cost and performance
+    estimated_cost_per_1k_tokens: 0.003
+    average_latency_seconds: 75
+
+  # Codex - Best for code generation
+  codex:
+    enabled: true
+    cli_command: "codex"
+    description: "GitHub Codex - Specialized code generation"
+
+    capabilities:
+      complex_reasoning: 70
+      code_generation: 95      # Excellent at code generation
+      speed: 85                # Faster than Claude
+      documentation: 60
+      context_window: 8000
+
+    task_type_weights:
+      coding: 100        # Best for coding tasks
+      simple: 70         # Good for simple coding
+      general: 60        # Decent general purpose
+      analysis: 40       # Not ideal for deep analysis
+      creative: 50
+
+    strengths:
+      - "api_implementation"
+      - "crud_operations"
+      - "standard_patterns"
+      - "test_generation"
+      - "refactoring"
+
+    estimated_cost_per_1k_tokens: 0.002
+    average_latency_seconds: 60
+
+  # Gemini - Best for speed and simple tasks
+  gemini:
+    enabled: true
+    cli_command: "gemini"
+    description: "Gemini Pro - Fast response for simple tasks"
+
+    capabilities:
+      complex_reasoning: 60
+      code_generation: 65
+      speed: 95               # Very fast
+      documentation: 90       # Excellent for docs
+      context_window: 32000
+
+    task_type_weights:
+      simple: 100        # Best for simple tasks
+      general: 70        # Good for general tasks
+      coding: 40         # Not specialized for coding
+      analysis: 30       # Weak at analysis
+      creative: 60
+
+    strengths:
+      - "documentation"
+      - "fast_response"
+      - "simple_queries"
+      - "readme_generation"
+      - "api_documentation"
+
+    estimated_cost_per_1k_tokens: 0.0005
+    average_latency_seconds: 45
+
+# =============================================================================
+# Selection Strategy
+# =============================================================================
+selection:
+  # Selection mode
+  # Options: smart (recommended), type_based, round_robin, cost_optimized
+  mode: "smart"
+
+  # Enable load balancing across agents
+  load_balancing: true
+
+  # Prefer faster agents when quality difference is small
+  prefer_faster: false
+
+  # Consider cost in agent selection
+  cost_aware: false
+
+  # Complexity evaluation rules
+  complexity_evaluation:
+    # Prompt length contribution
+    prompt_length:
+      enabled: true
+      weight: 1.0
+      formula: "len(prompt) / 100"
+
+    # Dependencies contribution
+    dependencies:
+      enabled: true
+      weight: 10.0
+      formula: "len(depends_on) * 10"
+
+    # Priority contribution
+    priority:
+      enabled: true
+      weight: 5.0
+      formula: "priority * 5"
+
+    # Keyword-based complexity
+    keywords:
+      enabled: true
+      weight: 20.0
+      complex_keywords:
+        - "implement"
+        - "design"
+        - "architecture"
+        - "system"
+        - "algorithm"
+        - "optimize"
+      simple_keywords:
+        - "write"
+        - "document"
+        - "list"
+        - "simple"
+        - "readme"
+        - "comments"
+
+  # Complexity level thresholds
+  complexity_levels:
+    simple:
+      min: 0
+      max: 30
+    medium:
+      min: 31
+      max: 70
+    complex:
+      min: 71
+      max: 999
+
+  # Task type to agent mapping (with fallback chain)
+  type_mapping:
+    analysis:
+      primary: "claude"
+      secondary: null
+      fallback: ["codex", "gemini"]
+      reason: "Claude excels at analytical reasoning"
+
+    coding:
+      primary: "codex"
+      secondary: "claude"  # Use Claude if complexity > 70
+      fallback: ["claude", "gemini"]
+      reason: "Codex specialized for code generation"
+      complexity_threshold: 70  # Switch to secondary if exceeded
+
+    simple:
+      primary: "gemini"
+      secondary: null
+      fallback: ["codex", "claude"]
+      reason: "Gemini fastest for simple tasks"
+
+    general:
+      primary: "claude"
+      secondary: null
+      fallback: ["codex", "gemini"]
+      reason: "Claude most versatile for general tasks"
+
+    creative:
+      primary: "claude"
+      secondary: null
+      fallback: ["gemini", "codex"]
+      reason: "Claude best for creative problem solving"
+
+# =============================================================================
+# Performance Tuning
+# =============================================================================
+performance:
+  # Maximum retry attempts for failed tasks
+  max_retries: 2
+
+  # Timeout for each agent call (seconds)
+  timeout_seconds: 600
+
+  # Maximum concurrent calls per agent
+  max_concurrent:
+    claude: 10
+    codex: 10
+    gemini: 15  # Gemini can handle more concurrent calls
+
+  # Retry delay (seconds)
+  retry_delay_seconds: 2
+
+  # Enable caching of agent responses
+  enable_caching: false
+
+# =============================================================================
+# Logging and Monitoring
+# =============================================================================
+logging:
+  # Log agent selection decisions
+  log_selections: true
+
+  # Log detailed rationale for each selection
+  log_rationale: true
+
+  # Log performance metrics
+  log_performance: true
+
+  # Include complexity scores in logs
+  include_complexity_scores: true
+
+# =============================================================================
+# Experimental Features
+# =============================================================================
+experimental:
+  # Enable dynamic agent weighting based on performance
+  adaptive_weighting: false
+
+  # Learn from past task execution times
+  learning_enabled: false
+
+  # Predict task difficulty using ML
+  ml_complexity_prediction: false

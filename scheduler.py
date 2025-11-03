@@ -215,13 +215,14 @@ class MultiAgentScheduler:
         result['task_type'] = task.task_type
         result['agent_selected'] = agent_name
 
-        # Log task complete
+        # Log task complete with full result
         if self.logger:
             self.logger.log_task_complete(
                 task.id,
                 result.get('success', False),
                 result.get('latency', 0),
-                result.get('error')
+                result.get('error'),
+                result.get('result')  # Save full task output
             )
 
         return result

@@ -25,12 +25,15 @@ Cost Comparison:
 
 import asyncio
 import time
+import argparse
 from typing import Dict
 from datetime import datetime
+from pathlib import Path
 from meta_agent import MetaAgentCLI
 from scheduler import MultiAgentScheduler, ExecutionMode
 from agents import ClaudeCLIAgent, CodexExecAgent, GeminiAgent
 from logger import ExecutionLogger
+from workspace_manager import WorkspaceManager
 
 
 # ============================================================================
@@ -57,15 +60,18 @@ DEMO_TASKS = [
 # Main Demo Function
 # ============================================================================
 
-async def run_cli_demo():
+async def run_cli_demo(workspace_path: str):
     """
     Run complete CLI demonstration
 
+    Args:
+        workspace_path: Path to workspace directory for agents to work in
+
     Workflow:
-    1. Initialize CLI agents (no API keys needed)
+    1. Initialize CLI agents with workspace (no API keys needed)
     2. Get user input or use preset
     3. Decompose task using Claude CLI (Meta-Agent)
-    4. Execute tasks using CLI scheduler
+    4. Execute tasks in workspace using CLI scheduler
     5. Display results and statistics
     """
     print("=" * 70)
@@ -74,36 +80,38 @@ async def run_cli_demo():
     print()
     print("✅ Features:")
     print("   • Task decomposition via Claude CLI (no API key)")
-    print("   • Parallel execution with multiple CLI agents")
+    print("   • Parallel execution with multiple CLI agents ")
     print("   • Intelligent dependency resolution")
     print("   • Cost-effective subscription model (67% savings)")
     print()
+    print(f"📁 Workspace: {workspace_path}")
+    print()
 
     # ========================================================================
-    # Step 1: Initialize CLI Agents
+    # Step 1: Initialize CLI Agents with Workspace
     # ========================================================================
     print("🔧 Step 1: Initializing CLI agents...")
     print()
 
     agents = {}
 
-    # Try to add Claude CLI
+    # Try to add Claude CLI with workspace
     try:
-        agents['claude'] = ClaudeCLIAgent()
+        agents['claude'] = ClaudeCLIAgent(workspace=workspace_path)
         print("✓ Claude CLI agent ready")
     except Exception as e:
         print(f"⚠️  Claude CLI not available: {e}")
 
-    # Try to add Codex CLI (using CodexExecAgent for correct command format)
+    # Try to add Codex CLI with workspace (using CodexExecAgent for correct command format)
     try:
-        agents['codex'] = CodexExecAgent()
+        agents['codex'] = CodexExecAgent(workspace=workspace_path)
         print("✓ Codex CLI agent ready")
     except Exception as e:
         print(f"⚠️  Codex CLI not available: {e}")
 
-    # Try to add Gemini CLI
+    # Try to add Gemini CLI with workspace
     try:
-        agents['gemini'] = GeminiAgent()
+        agents['gemini'] = GeminiAgent(workspace=workspace_path)
         print("✓ Gemini CLI agent ready")
     except Exception as e:
         print(f"⚠️  Gemini CLI not available: {e}")
@@ -132,9 +140,9 @@ async def run_cli_demo():
     meta = MetaAgentCLI()
     print("✓ Meta-Agent ready (uses Claude CLI for task decomposition)")
 
-    # Initialize execution logger
+    # Initialize execution logger with workspace path
     session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    logger = ExecutionLogger(session_id)
+    logger = ExecutionLogger(session_id, workspace_path=workspace_path)
     print()
 
     # ========================================================================
@@ -285,14 +293,95 @@ async def run_cli_demo():
 # Entry Point
 # ============================================================================
 
-if __name__ == "__main__":
+def main():
+    """
+    Main entry point with argument parsing
+
+    CLI Arguments:
+        --workspace, -w : Workspace name or absolute path (default: auto-generated)
+        --continue, -c  : Continue from existing workspace
+
+    Examples:
+        # Auto-create workspace with timestamp
+        python demo_cli_full.py
+
+        # Use named workspace
+        python demo_cli_full.py --workspace my-web-app
+
+        # Use absolute path
+        python demo_cli_full.py --workspace /path/to/project
+
+        # Continue from existing workspace
+        python demo_cli_full.py --workspace my-web-app --continue
+    """
+    parser = argparse.ArgumentParser(
+        description="Multi-Agent Scheduler - 100% CLI Mode with Workspace Support",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Auto-create workspace with timestamp
+  python demo_cli_full.py
+
+  # Use named workspace
+  python demo_cli_full.py --workspace my-web-app
+
+  # Use absolute path
+  python demo_cli_full.py --workspace /path/to/project
+
+  # Continue from existing workspace
+  python demo_cli_full.py --workspace my-web-app --continue
+"""
+    )
+
+    parser.add_argument(
+        '--workspace', '-w',
+        type=str,
+        default=None,
+        help='Workspace name or absolute path (default: auto-generated with timestamp)'
+    )
+
+    parser.add_argument(
+        '--continue', '-c',
+        action='store_true',
+        dest='continue_mode',
+        help='Continue from existing workspace (load previous state)'
+    )
+
+    args = parser.parse_args()
+
+    # Initialize workspace manager
+    workspace_mgr = WorkspaceManager()
+
+    # Create or get workspace path
+    if args.workspace:
+        if Path(args.workspace).is_absolute():
+            # Use absolute path directly
+            workspace_path = workspace_mgr.get_workspace_path(args.workspace)
+        else:
+            # Use relative name (create in workspaces/ directory)
+            if args.continue_mode:
+                # Use existing workspace
+                workspace_path = workspace_mgr.get_workspace_path(args.workspace, create_if_missing=False)
+                if not workspace_path.exists():
+                    print(f"❌ Workspace '{args.workspace}' does not exist!")
+                    print(f"   Available workspaces: {', '.join(workspace_mgr.list_workspaces())}")
+                    return
+            else:
+                # Create new workspace (without timestamp if name specified)
+                workspace_path = workspace_mgr.create_workspace(args.workspace, use_timestamp=False)
+    else:
+        # Auto-generate workspace with timestamp
+        workspace_path = workspace_mgr.create_workspace()
+
+    # Run demo with workspace
     try:
-        asyncio.run(run_cli_demo())
+        asyncio.run(run_cli_demo(str(workspace_path)))
     except KeyboardInterrupt:
         print("\n\n⚠️  Demo interrupted by user")
     except Exception as e:
         print(f"\n\n❌ Error: {e}")
-        print("\n💡 Troubleshooting:")
-        print("   1. Ensure CLI tools are installed and authenticated")
-        print("   2. Check network connection")
-        print("   3. Verify CLI subscriptions are active")
+        raise
+
+
+if __name__ == "__main__":
+    main()

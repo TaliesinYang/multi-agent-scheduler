@@ -14,12 +14,13 @@ from openai import AsyncOpenAI
 class BaseAgent:
     """Base AI Agent Class"""
 
-    def __init__(self, name: str, max_concurrent: int = 10):
+    def __init__(self, name: str, max_concurrent: int = 10, workspace: str = None):
         self.name = name
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.call_count = 0
         self.total_latency = 0.0
         self.total_tokens = 0
+        self.workspace = workspace  # Working directory for file operations
 
     async def call(self, prompt: str) -> Dict:
         """
@@ -63,7 +64,7 @@ class RobustCLIAgent(BaseAgent):
                 )
     """
 
-    def __init__(self, name: str, cli_command: str, max_concurrent: int = 10):
+    def __init__(self, name: str, cli_command: str, max_concurrent: int = 10, workspace: str = None):
         """
         Initialize robust CLI agent
 
@@ -71,8 +72,9 @@ class RobustCLIAgent(BaseAgent):
             name: Agent name
             cli_command: CLI command to execute (e.g., "claude", "gemini")
             max_concurrent: Maximum concurrent calls
+            workspace: Working directory for file operations
         """
-        super().__init__(name, max_concurrent)
+        super().__init__(name, max_concurrent, workspace)
         self.cli_command = cli_command
         self.default_timeout = 600.0  # 10 minutes timeout for complex tasks
 
@@ -105,11 +107,12 @@ class RobustCLIAgent(BaseAgent):
                 if output_format:
                     args.extend(["--output-format", output_format])
 
-                # Create subprocess
+                # Create subprocess with workspace as working directory
                 process = await asyncio.create_subprocess_exec(
                     *args,
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=self.workspace  # Use workspace for file operations
                 )
 
                 # Wait with timeout
@@ -182,8 +185,8 @@ class RobustCLIAgent(BaseAgent):
 class ClaudeAgent(BaseAgent):
     """Claude API Agent"""
 
-    def __init__(self, api_key: str, max_concurrent: int = 20, model: str = "claude-sonnet-4-5-20250929"):
-        super().__init__("Claude", max_concurrent)
+    def __init__(self, api_key: str, max_concurrent: int = 20, model: str = "claude-sonnet-4-5-20250929", workspace: str = None):
+        super().__init__("Claude", max_concurrent, workspace)
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = model
 
@@ -235,21 +238,23 @@ class ClaudeCLIAgent(RobustCLIAgent):
     Requires: npm install -g @anthropic-ai/claude-code
 
     Example:
-        agent = ClaudeCLIAgent()
+        agent = ClaudeCLIAgent(workspace="/path/to/project")
         result = await agent.call("Explain quantum computing")
     """
 
-    def __init__(self, max_concurrent: int = 10):
+    def __init__(self, max_concurrent: int = 10, workspace: str = None):
         """
         Initialize Claude CLI agent
 
         Args:
             max_concurrent: Maximum concurrent calls
+            workspace: Working directory for file operations
         """
         super().__init__(
             name="Claude-CLI",
             cli_command="claude",
-            max_concurrent=max_concurrent
+            max_concurrent=max_concurrent,
+            workspace=workspace
         )
 
 
@@ -289,18 +294,19 @@ class CodexExecAgent(BaseAgent):
     Requires: GitHub Copilot subscription or codex CLI access
 
     Example:
-        agent = CodexExecAgent()
+        agent = CodexExecAgent(workspace="/path/to/project")
         result = await agent.call("Write a Python function to sort a list")
     """
 
-    def __init__(self, max_concurrent: int = 10):
+    def __init__(self, max_concurrent: int = 10, workspace: str = None):
         """
         Initialize Codex Exec agent
 
         Args:
             max_concurrent: Maximum concurrent calls (default: 10)
+            workspace: Working directory for file operations
         """
-        super().__init__("Codex-CLI", max_concurrent)
+        super().__init__("Codex-CLI", max_concurrent, workspace)
         self.default_timeout = 600.0  # 10 minutes timeout
 
     async def call(
@@ -326,12 +332,12 @@ class CodexExecAgent(BaseAgent):
                 # Use correct codex exec format
                 args = ["codex", "exec", prompt, "--skip-git-repo-check"]
 
-                # Create subprocess
+                # Create subprocess with workspace as working directory
                 process = await asyncio.create_subprocess_exec(
                     *args,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
-                    cwd="/mnt/e/BaiduNetdiskDownload/obsidian/VPL Leaning/FDUClasses/25VF_CSCI_6650_V1AdvTopicsOperatingSystems/Assignments/Group/multi-agent-scheduler"
+                    cwd=self.workspace  # Use workspace for file operations
                 )
 
                 # Wait with timeout
@@ -404,8 +410,8 @@ class CodexExecAgent(BaseAgent):
 class OpenAIAgent(BaseAgent):
     """OpenAI API Agent"""
 
-    def __init__(self, api_key: str, max_concurrent: int = 20, model: str = "gpt-4-turbo"):
-        super().__init__("OpenAI", max_concurrent)
+    def __init__(self, api_key: str, max_concurrent: int = 20, model: str = "gpt-4-turbo", workspace: str = None):
+        super().__init__("OpenAI", max_concurrent, workspace)
         self.client = AsyncOpenAI(api_key=api_key)
         self.model = model
 
@@ -462,29 +468,31 @@ class GeminiAgent(RobustCLIAgent):
     - Automatic process cleanup
 
     Example:
-        agent = GeminiAgent()
+        agent = GeminiAgent(workspace="/path/to/project")
         result = await agent.call("Explain quantum computing")
     """
 
-    def __init__(self, max_concurrent: int = 10):
+    def __init__(self, max_concurrent: int = 10, workspace: str = None):
         """
         Initialize Gemini CLI agent
 
         Args:
             max_concurrent: Maximum concurrent calls
+            workspace: Working directory for file operations
         """
         super().__init__(
             name="Gemini",
             cli_command="gemini",
-            max_concurrent=max_concurrent
+            max_concurrent=max_concurrent,
+            workspace=workspace
         )
 
 
 class MockAgent(BaseAgent):
     """Mock Agent (for testing, no real API required)"""
 
-    def __init__(self, name: str = "Mock", delay: float = 1.0, max_concurrent: int = 10):
-        super().__init__(name, max_concurrent)
+    def __init__(self, name: str = "Mock", delay: float = 1.0, max_concurrent: int = 10, workspace: str = None):
+        super().__init__(name, max_concurrent, workspace)
         self.delay = delay
 
     async def call(self, prompt: str) -> Dict:

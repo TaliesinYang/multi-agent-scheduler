@@ -24,12 +24,13 @@ class ExecutionLogger:
     - Supports post-execution analysis
     """
 
-    def __init__(self, session_id: Optional[str] = None):
+    def __init__(self, session_id: Optional[str] = None, workspace_path: Optional[str] = None):
         """
         Initialize execution logger
 
         Args:
             session_id: Unique session identifier (default: timestamp)
+            workspace_path: Path to workspace directory
         """
         self.session_id = session_id or datetime.now().strftime("%Y%m%d_%H%M%S")
         self.log_dir = Path("logs")
@@ -41,6 +42,7 @@ class ExecutionLogger:
         self.start_time = datetime.now()
         self.end_time = None
         self.user_task = None
+        self.workspace_path = workspace_path  # Store workspace path
         self.tasks = []
         self.batches = []
         self.current_batch = None
@@ -125,7 +127,8 @@ class ExecutionLogger:
         task_id: str,
         success: bool,
         duration: float,
-        error: Optional[str] = None
+        error: Optional[str] = None,
+        result: Optional[str] = None
     ):
         """
         Log task execution completion
@@ -135,6 +138,7 @@ class ExecutionLogger:
             success: Whether task succeeded
             duration: Execution time in seconds
             error: Error message if failed
+            result: Task output/result (full content)
         """
         # Find task log
         task_log = next((t for t in self.tasks if t["task_id"] == task_id), None)
@@ -144,6 +148,7 @@ class ExecutionLogger:
             task_log["duration"] = round(duration, 2)
             task_log["success"] = success
             task_log["error"] = error
+            task_log["result"] = result  # Save full task output
             del task_log["start_timestamp"]
 
             # Real-time display
@@ -173,6 +178,7 @@ class ExecutionLogger:
         log_data = {
             "session_id": self.session_id,
             "user_task": self.user_task,
+            "workspace_path": self.workspace_path,  # Save workspace path
             "start_time": self.start_time.isoformat(),
             "end_time": self.end_time.isoformat() if self.end_time else None,
             "total_time": round(self.total_time, 2) if hasattr(self, 'total_time') else None,

@@ -329,8 +329,13 @@ class CodexExecAgent(BaseAgent):
             timeout_val = timeout or self.default_timeout
 
             try:
-                # Use correct codex exec format
-                args = ["codex", "exec", prompt, "--skip-git-repo-check"]
+                # Use correct codex exec format with workspace-write permissions
+                args = [
+                    "codex", "exec", prompt,
+                    "--sandbox", "workspace-write",      # Allow file creation in workspace
+                    "--ask-for-approval", "never",       # Auto-execute without prompts
+                    "--skip-git-repo-check"
+                ]
 
                 # Create subprocess with workspace as working directory
                 process = await asyncio.create_subprocess_exec(

@@ -28,6 +28,9 @@ Thumbs.db
 *.log
 logs/
 
+# Workspaces (generated output)
+workspaces/
+
 # Test
 .pytest_cache/
 .coverage

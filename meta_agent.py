@@ -32,13 +32,14 @@ class MetaAgent:
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = model
 
-    async def decompose_task(self, user_input: str, max_tasks: int = 10) -> List[Task]:
+    async def decompose_task(self, user_input: str, min_tasks: int = 15, max_tasks: int = 20) -> List[Task]:
         """
         Decompose user's complex task into structured subtasks
 
         Args:
             user_input: User's task description (e.g., "Build a website")
-            max_tasks: Maximum number of subtasks to generate
+            min_tasks: Minimum number of subtasks to generate (default: 15)
+            max_tasks: Maximum number of subtasks to generate (default: 20)
 
         Returns:
             List of Task objects with dependencies
@@ -52,7 +53,7 @@ class MetaAgent:
             task3: Add authentication
             task4: Write API tests
         """
-        prompt = self._build_decomposition_prompt(user_input, max_tasks)
+        prompt = self._build_decomposition_prompt(user_input, min_tasks, max_tasks)
 
         try:
             response = await self.client.messages.create(
@@ -77,14 +78,14 @@ class MetaAgent:
                 priority=1
             )]
 
-    def _build_decomposition_prompt(self, user_input: str, max_tasks: int) -> str:
+    def _build_decomposition_prompt(self, user_input: str, min_tasks: int, max_tasks: int) -> str:
         """Build the prompt for task decomposition with atomic granularity"""
         return f"""You are a project planning expert. Break down this task into ATOMIC, executable subtasks.
 
 User Task: {user_input}
 
 CRITICAL Requirements:
-1. Generate 10-{max_tasks} SMALL, ATOMIC subtasks (prefer more smaller tasks over fewer large tasks)
+1. Generate {min_tasks} to {max_tasks} SMALL, ATOMIC subtasks (prefer 15-20 tasks, favor MORE smaller tasks over fewer large tasks)
 2. Each subtask MUST be completable in < 5 minutes
 3. Each subtask should modify 1-3 files maximum
 4. Break down by individual files, endpoints, or components - NOT by phases
@@ -390,14 +391,16 @@ class MetaAgentCLI:
     async def decompose_task(
         self,
         user_input: str,
-        max_tasks: int = 10
+        min_tasks: int = 15,
+        max_tasks: int = 20
     ) -> List[Task]:
         """
         Decompose user's complex task using Claude CLI
 
         Args:
             user_input: User's task description
-            max_tasks: Maximum number of subtasks (default: 10)
+            min_tasks: Minimum number of subtasks (default: 15)
+            max_tasks: Maximum number of subtasks (default: 20)
 
         Returns:
             List of Task objects with dependencies
@@ -405,7 +408,7 @@ class MetaAgentCLI:
         print("🧠 Meta-Agent analyzing task via CLI...")
 
         # Build decomposition prompt
-        prompt = self._build_decomposition_prompt(user_input, max_tasks)
+        prompt = self._build_decomposition_prompt(user_input, min_tasks, max_tasks)
 
         try:
             # Call claude CLI with longer timeout for complex decomposition
@@ -425,7 +428,7 @@ class MetaAgentCLI:
             print("⚠️  Using fallback: single task")
             return self._create_fallback_task(user_input)
 
-    def _build_decomposition_prompt(self, user_input: str, max_tasks: int) -> str:
+    def _build_decomposition_prompt(self, user_input: str, min_tasks: int, max_tasks: int) -> str:
         """
         Build the prompt for task decomposition with atomic granularity
 
@@ -436,7 +439,7 @@ class MetaAgentCLI:
 User Task: {user_input}
 
 CRITICAL Requirements:
-1. Generate 10-{max_tasks} SMALL, ATOMIC subtasks (prefer more smaller tasks over fewer large tasks)
+1. Generate {min_tasks} to {max_tasks} SMALL, ATOMIC subtasks (prefer 15-20 tasks, favor MORE smaller tasks over fewer large tasks)
 2. Each subtask MUST be completable in < 5 minutes
 3. Each subtask should modify 1-3 files maximum
 4. Break down by individual files, endpoints, or components - NOT by phases

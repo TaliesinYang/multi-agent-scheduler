@@ -6,6 +6,7 @@ Unified interface supporting Claude, OpenAI, and Gemini
 import asyncio
 import subprocess
 import time
+import shlex
 from typing import Dict, Optional
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
@@ -329,20 +330,33 @@ class CodexExecAgent(BaseAgent):
             timeout_val = timeout or self.default_timeout
 
             try:
-                # Use correct codex exec format with full-auto mode
-                args = [
-                    "codex", "exec", prompt,
-                    "--full-auto",                       # Enables workspace-write + auto-approval
-                    "--skip-git-repo-check"
-                ]
+                # Use shell to cd into workspace first, then run codex exec
+                # This works around Codex CLI's cwd parameter bug with long/special paths
+                if self.workspace:
+                    # Use shlex.quote to safely handle spaces and special characters
+                    safe_workspace = shlex.quote(str(self.workspace))
+                    safe_prompt = shlex.quote(prompt)
+                    shell_cmd = f"cd {safe_workspace} && codex exec {safe_prompt} --full-auto --skip-git-repo-check"
+                    args = ["bash", "-c", shell_cmd]
 
-                # Create subprocess with workspace as working directory
-                process = await asyncio.create_subprocess_exec(
-                    *args,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=self.workspace  # Use workspace for file operations
-                )
+                    # Create subprocess using shell command
+                    process = await asyncio.create_subprocess_exec(
+                        *args,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                else:
+                    # No workspace - use direct command
+                    args = [
+                        "codex", "exec", prompt,
+                        "--full-auto",
+                        "--skip-git-repo-check"
+                    ]
+                    process = await asyncio.create_subprocess_exec(
+                        *args,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
 
                 # Wait with timeout
                 try:

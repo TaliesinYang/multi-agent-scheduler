@@ -88,6 +88,20 @@ async def run_cli_demo(workspace_path: str):
     print(f"📁 Workspace: {workspace_path}")
     print()
 
+    # Validate workspace path before starting
+    from workspace_manager import WorkspaceManager
+    workspace_mgr = WorkspaceManager()
+    is_valid, error = workspace_mgr.validate_workspace(workspace_path)
+    if not is_valid:
+        print()
+        print("=" * 70)
+        print("❌ Workspace Validation Failed")
+        print("=" * 70)
+        print()
+        print(error)
+        print()
+        return
+
     # ========================================================================
     # Step 1: Initialize CLI Agents with Workspace
     # ========================================================================

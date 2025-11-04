@@ -382,12 +382,29 @@ class CodexExecAgent(BaseAgent):
                 end_time = time.time()
                 latency = end_time - start_time
 
-                # Process successful response
-                if process.returncode == 0:
-                    result_text = stdout.decode('utf-8').strip()
+                # Decode output
+                stdout_text = stdout.decode('utf-8').strip()
+                stderr_text = stderr.decode('utf-8').strip()
 
+                # Codex CLI returns exit code 1 even on success, so check output content
+                # instead of relying solely on returncode
+                is_success = False
+
+                if process.returncode == 0:
+                    # Standard success case
+                    is_success = True
+                elif "Success" in stdout_text or "Updated the following files" in stdout_text:
+                    # Codex CLI success markers (even with returncode 1)
+                    is_success = True
+                elif stderr_text and "ERROR" not in stderr_text.upper() and "FATAL" not in stderr_text.upper():
+                    # Only warnings in stderr, not fatal errors
+                    # Common case: MCP timeout warnings don't prevent task completion
+                    is_success = True
+
+                if is_success:
+                    # Process successful response
                     # Estimate tokens (rough approximation)
-                    estimated_tokens = len(prompt.split()) + len(result_text.split())
+                    estimated_tokens = len(prompt.split()) + len(stdout_text.split())
 
                     # Update statistics
                     self.call_count += 1
@@ -396,14 +413,14 @@ class CodexExecAgent(BaseAgent):
 
                     return {
                         "agent": self.name,
-                        "result": result_text,
+                        "result": stdout_text,
                         "latency": latency,
                         "tokens": estimated_tokens,
                         "success": True
                     }
                 else:
                     # Process error
-                    error_msg = stderr.decode('utf-8').strip()
+                    error_msg = stderr_text if stderr_text else stdout_text
                     return {
                         "agent": self.name,
                         "result": f"CLI Error: {error_msg}",

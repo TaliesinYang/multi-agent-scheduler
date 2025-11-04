@@ -76,16 +76,16 @@ async def run_cli_demo(workspace_path: str):
     5. Display results and statistics
     """
     print("=" * 70)
-    print(" 🔥 Multi-Agent Scheduler - 100% CLI Mode")
+    print("  Multi-Agent Scheduler - CLI Mode")
     print("=" * 70)
     print()
-    print("✅ Features:")
+    print("Features:")
     print("   • Task decomposition via Claude CLI (no API key)")
     print("   • Parallel execution with multiple CLI agents ")
     print("   • Intelligent dependency resolution")
     print("   • Cost-effective subscription model (67% savings)")
     print()
-    print(f"📁 Workspace: {workspace_path}")
+    print(f"Workspace: {workspace_path}")
     print()
 
     # Validate workspace path before starting
@@ -95,7 +95,7 @@ async def run_cli_demo(workspace_path: str):
     if not is_valid:
         print()
         print("=" * 70)
-        print("❌ Workspace Validation Failed")
+        print("[FAIL] Workspace Validation Failed")
         print("=" * 70)
         print()
         print(error)
@@ -105,7 +105,7 @@ async def run_cli_demo(workspace_path: str):
     # ========================================================================
     # Step 1: Initialize CLI Agents with Workspace
     # ========================================================================
-    print("🔧 Step 1: Initializing CLI agents...")
+    print("Step 1: Initializing agents...")
     print()
 
     agents = {}
@@ -113,29 +113,29 @@ async def run_cli_demo(workspace_path: str):
     # Try to add Claude CLI with workspace
     try:
         agents['claude'] = ClaudeCLIAgent(workspace=workspace_path)
-        print("✓ Claude CLI agent ready")
+        print("   [OK] Claude CLI ready")
     except Exception as e:
-        print(f"⚠️  Claude CLI not available: {e}")
+        print(f"   [WARN] Claude CLI not available: {e}")
 
     # Try to add Codex CLI with workspace (using CodexExecAgent for correct command format)
     try:
         agents['codex'] = CodexExecAgent(workspace=workspace_path)
-        print("✓ Codex CLI agent ready")
+        print("   [OK] Codex CLI ready")
     except Exception as e:
-        print(f"⚠️  Codex CLI not available: {e}")
+        print(f"   [WARN] Codex CLI not available: {e}")
 
     # Try to add Gemini CLI with workspace
     try:
         agents['gemini'] = GeminiAgent(workspace=workspace_path)
-        print("✓ Gemini CLI agent ready")
+        print("   [OK] Gemini CLI ready")
     except Exception as e:
-        print(f"⚠️  Gemini CLI not available: {e}")
+        print(f"   [WARN] Gemini CLI not available: {e}")
 
     if not agents:
         print()
-        print("❌ No CLI agents available!")
+        print("[FAIL] No CLI agents available!")
         print()
-        print("📝 Setup Instructions:")
+        print("Setup Instructions:")
         print("   1. Install CLI tools:")
         print("      npm install -g @anthropic-ai/claude-code")
         print("      # codex and gemini are optional")
@@ -145,15 +145,15 @@ async def run_cli_demo(workspace_path: str):
         print()
         return
 
-    print(f"\n✅ {len(agents)} CLI agent(s) initialized: {', '.join(agents.keys())}")
+    print(f"\n   [OK] {len(agents)} agent(s) initialized: {', '.join(agents.keys())}")
     print()
 
     # ========================================================================
     # Step 2: Initialize Meta-Agent (CLI version) and Logger
     # ========================================================================
-    print("🧠 Step 2: Initializing Meta-Agent (CLI version) and Logger...")
+    print("Step 2: Initializing Meta-Agent and Logger...")
     meta = MetaAgentCLI()
-    print("✓ Meta-Agent ready (uses Claude CLI for task decomposition)")
+    print("   [OK] Meta-Agent ready (uses Claude CLI)")
 
     # Initialize execution logger with workspace path
     session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -163,7 +163,7 @@ async def run_cli_demo(workspace_path: str):
     # ========================================================================
     # Step 3: Get User Input
     # ========================================================================
-    print("💬 Step 3: Task Input")
+    print("Step 3: Task Input")
     print()
     print("Preset tasks:")
     for i, task in enumerate(DEMO_TASKS, 1):
@@ -180,24 +180,24 @@ async def run_cli_demo(workspace_path: str):
         choice_idx = int(choice) - 1
         if 0 <= choice_idx < len(DEMO_TASKS):
             user_input = DEMO_TASKS[choice_idx]['description']
-            print(f"\n✓ Selected: {DEMO_TASKS[choice_idx]['name']}")
+            print(f"\n   [OK] Selected: {DEMO_TASKS[choice_idx]['name']}")
         else:
-            user_input = input("\n💬 Enter your task: ").strip()
+            user_input = input("\nEnter your task: ").strip()
             if not user_input:
                 user_input = DEMO_TASKS[0]['description']
-                print(f"✓ Using default: {DEMO_TASKS[0]['name']}")
+                print(f"   [OK] Using default: {DEMO_TASKS[0]['name']}")
     except ValueError:
         user_input = DEMO_TASKS[0]['description']
-        print(f"✓ Using default: {DEMO_TASKS[0]['name']}")
+        print(f"   [OK] Using default: {DEMO_TASKS[0]['name']}")
 
     print()
-    print(f"📋 Task: {user_input}")
+    print(f"Task: {user_input}")
     print()
 
     # ========================================================================
     # Step 4: Decompose Task (via CLI)
     # ========================================================================
-    print("🔄 Step 4: Decomposing task via Claude CLI...")
+    print("Step 4: Decomposing task...")
     print()
 
     # Set user task in logger
@@ -211,7 +211,7 @@ async def run_cli_demo(workspace_path: str):
     logger.log_decomposition(len(tasks), decompose_time)
 
     print()
-    print(f"✓ Task decomposition completed in {decompose_time:.2f}s")
+    print(f"   [OK] Decomposition completed in {decompose_time:.2f}s")
     meta.print_task_tree(tasks)
 
     # Initialize task visualizer
@@ -221,7 +221,7 @@ async def run_cli_demo(workspace_path: str):
     # ========================================================================
     # Step 5: Execute Tasks (via CLI)
     # ========================================================================
-    print("⚡ Step 5: Executing tasks via CLI scheduler...")
+    print("Step 5: Executing tasks...")
     print()
 
     scheduler = MultiAgentScheduler(agents, logger=logger)
@@ -239,7 +239,7 @@ async def run_cli_demo(workspace_path: str):
     # ========================================================================
     print()
     print("=" * 70)
-    print(" 📊 Execution Results")
+    print("  Execution Results")
     print("=" * 70)
     print()
 
@@ -252,20 +252,20 @@ async def run_cli_demo(workspace_path: str):
     total = len(result.results)
     success_rate = (successful / total * 100) if total > 0 else 0
 
-    print(f"✅ Success Rate: {successful}/{total} ({success_rate:.0f}%)")
-    print(f"⏱️  Total Time: {result.total_time:.2f}s")
-    print(f"⏱️  Decomposition Time: {decompose_time:.2f}s")
+    print(f"Success Rate: {successful}/{total} ({success_rate:.0f}%)")
+    print(f"Total Time: {result.total_time:.2f}s")
+    print(f"Decomposition Time: {decompose_time:.2f}s")
 
     # Performance gain (if available)
     if hasattr(result, 'performance_gain') and result.performance_gain is not None:
-        print(f"🚀 Performance Gain: {result.performance_gain:.1f}%")
+        print(f"Performance Gain: {result.performance_gain:.1f}%")
 
     print()
 
     # Task details
-    print("📋 Task Results:")
+    print("Task Results:")
     for i, (task, task_result) in enumerate(zip(tasks, result.results), 1):
-        status = "✅" if task_result.get('success') else "❌"
+        status = "[OK]" if task_result.get('success') else "[FAIL]"
         agent_used = task_result.get('agent', 'unknown')
         latency = task_result.get('latency', 0)
         print(f"   {status} {task.id}: {task.prompt[:50]}...")
@@ -274,7 +274,7 @@ async def run_cli_demo(workspace_path: str):
     print()
 
     # Agent distribution statistics
-    print("📊 Agent Distribution:")
+    print("Agent Distribution:")
     agent_stats = {}
     agent_times = {}
     for r in result.results:
@@ -293,15 +293,15 @@ async def run_cli_demo(workspace_path: str):
     # Get selector stats if available
     if hasattr(scheduler, 'agent_selector'):
         selector_stats = scheduler.agent_selector.get_selection_stats()
-        print(f"\n💡 Selection Strategy: Smart (config-driven)")
+        print(f"\nSelection Strategy: Smart (config-driven)")
     else:
-        print(f"\n💡 Selection Strategy: Legacy")
+        print(f"\nSelection Strategy: Legacy")
 
     print()
     print("=" * 70)
-    print("✅ Demo completed!")
+    print("[OK] Demo completed!")
     print()
-    print("💡 Key Takeaways:")
+    print("Key Takeaways:")
     print("   • 100% CLI-based execution (no API keys)")
     print("   • Automatic task decomposition and scheduling")
     print("   • Intelligent agent selection based on task characteristics")

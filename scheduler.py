@@ -123,7 +123,7 @@ class MultiAgentScheduler:
 
         except Exception as e:
             # Fallback to legacy strategy
-            print(f"  ⚠️  Agent selection error: {e}, using fallback")
+            print(f"  [WARN] Agent selection error: {e}, using fallback")
             task_type = task.task_type.lower()
             selected_agent = self.agent_selection_strategy.get(task_type, 'claude')
 
@@ -237,7 +237,7 @@ class MultiAgentScheduler:
         Returns:
             Execution result
         """
-        print(f"\n🚀 [PARALLEL MODE] Executing {len(tasks)} tasks simultaneously")
+        print(f"\n[PARALLEL] Executing {len(tasks)} tasks simultaneously")
         start_time = time.time()
 
         # Select agent for each task
@@ -268,7 +268,7 @@ class MultiAgentScheduler:
         Returns:
             Execution result
         """
-        print(f"\n🔄 [SERIAL MODE] Executing {len(tasks)} tasks sequentially")
+        print(f"\n[SERIAL] Executing {len(tasks)} tasks sequentially")
         start_time = time.time()
 
         results = []
@@ -385,7 +385,7 @@ class MultiAgentScheduler:
             Comparison result dictionary
         """
         print("\n" + "=" * 60)
-        print("📊 Performance Comparison Test: Serial vs Parallel")
+        print("Performance Comparison Test: Serial vs Parallel")
         print("=" * 60)
 
         # Serial execution
@@ -414,7 +414,7 @@ class MultiAgentScheduler:
     def print_summary(self, result: ExecutionResult):
         """Print execution summary"""
         print("\n" + "=" * 60)
-        print(f"✅ Execution Complete!")
+        print(f"[OK] Execution Complete!")
         print("=" * 60)
         print(f"Execution mode: {result.mode.value}")
         print(f"Total time: {result.total_time:.2f} seconds")

@@ -114,15 +114,15 @@ class TaskVisualizer:
                 self.status_map[task_id].agent = agent
 
     def _get_status_emoji(self, status: str) -> str:
-        """Get emoji for status"""
+        """Get status symbol"""
         emoji_map = {
-            "pending": "⏸️ ",
-            "in_progress": "⏳",
-            "completed": "✅",
-            "failed": "❌",
-            "decomposed": "🔄"
+            "pending": "[ - ]",
+            "in_progress": "[RUN]",
+            "completed": "[OK] ",
+            "failed": "[FAIL]",
+            "decomposed": "[...] "
         }
-        return emoji_map.get(status, "❓")
+        return emoji_map.get(status, "[?]  ")
 
     def _format_duration(self, seconds: float) -> str:
         """Format duration in human-readable format"""
@@ -157,7 +157,7 @@ class TaskVisualizer:
         total_tasks = len(self.tasks)
         batch_count = len(self.batches)
         lines.append("")
-        lines.append(f"📋 Task Topology ({total_tasks} tasks, {batch_count} batches)")
+        lines.append(f"Task Topology: {total_tasks} tasks, {batch_count} batches")
         lines.append("")
 
         # Render each batch

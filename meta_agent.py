@@ -247,7 +247,7 @@ Example of CORRECT output format (start immediately with '['):
                 priority=1
             )]
 
-        print(f"⚠️  Used fallback parser: {len(tasks)} tasks extracted")
+        print(f"[WARN] Used fallback parser: {len(tasks)} tasks extracted")
         return tasks
 
     async def analyze_complexity(self, user_input: str) -> Dict:
@@ -416,7 +416,7 @@ class MetaAgentCLI:
         Returns:
             List of Task objects with dependencies
         """
-        print("🧠 Meta-Agent analyzing task via CLI...")
+        print("[Meta-Agent] analyzing task via CLI...")
 
         # Build decomposition prompt
         prompt = self._build_decomposition_prompt(user_input, min_tasks, max_tasks)
@@ -451,14 +451,14 @@ class MetaAgentCLI:
                     return tasks
             else:
                 error = result.get('error', 'Unknown error')
-                print(f"⚠️  CLI decomposition failed: {error}")
-                print("⚠️  Using fallback: single task")
+                print(f"[WARN] CLI decomposition failed: {error}")
+                print("[WARN] Using fallback: single task")
                 return self._create_fallback_task(user_input)
 
         except Exception as e:
-            print(f"⚠️  Meta-Agent CLI error: {e}")
-            print(f"⚠️  Error details: {type(e).__name__}")
-            print("⚠️  Using fallback: single task")
+            print(f"[WARN] Meta-Agent CLI error: {e}")
+            print(f"[WARN] Error details: {type(e).__name__}")
+            print("[WARN] Using fallback: single task")
             return self._create_fallback_task(user_input)
 
     def _build_decomposition_prompt(self, user_input: str, min_tasks: int, max_tasks: int) -> str:
@@ -629,10 +629,10 @@ Example of CORRECT output format (start immediately with '['):
 
         if not tasks:
             # Last resort: single task
-            print("⚠️  Fallback parsing failed, creating single task")
+            print("[WARN] Fallback parsing failed, creating single task")
             return self._create_fallback_task(text[:200])
 
-        print(f"⚠️  Used fallback parsing, extracted {len(tasks)} tasks")
+        print(f"[WARN] Used fallback parsing, extracted {len(tasks)} tasks")
         return tasks
 
     def _create_fallback_task(self, user_input: str) -> List[Task]:

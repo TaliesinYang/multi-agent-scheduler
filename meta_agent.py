@@ -78,43 +78,70 @@ class MetaAgent:
             )]
 
     def _build_decomposition_prompt(self, user_input: str, max_tasks: int) -> str:
-        """Build the prompt for task decomposition"""
-        return f"""You are a project planning expert. Analyze this task and break it down into subtasks.
+        """Build the prompt for task decomposition with atomic granularity"""
+        return f"""You are a project planning expert. Break down this task into ATOMIC, executable subtasks.
 
 User Task: {user_input}
 
-Requirements:
-1. Generate 3-{max_tasks} concrete, executable subtasks
-2. Each subtask should be specific and actionable
-3. Identify dependencies between tasks
-4. Classify each task type: coding, analysis, simple, or general
-5. Assign priority (1=highest, 5=lowest)
+CRITICAL Requirements:
+1. Generate 10-{max_tasks} SMALL, ATOMIC subtasks (prefer more smaller tasks over fewer large tasks)
+2. Each subtask MUST be completable in < 5 minutes
+3. Each subtask should modify 1-3 files maximum
+4. Break down by individual files, endpoints, or components - NOT by phases
+5. Identify dependencies between tasks precisely
+6. Classify task type: coding, analysis, simple, or general
+7. Assign priority (1=highest, 5=lowest)
+8. Estimate execution time in minutes
+
+Granularity Guidelines:
+❌ BAD (too broad):
+   - "Implement frontend-backend integration"
+   - "Add validation to all API endpoints"
+   - "Set up complete authentication system"
+   - "Build entire user interface"
+
+✅ GOOD (atomic):
+   - "Create API client helper in src/api/client.js"
+   - "Add Authorization header to API client requests"
+   - "Update TasksPage.jsx to use API client for fetching tasks"
+   - "Add email validation helper function in utils/validation.js"
+   - "Apply email validation to /api/register endpoint"
 
 Return ONLY a valid JSON array in this exact format:
 [
   {{
     "id": "task1",
-    "prompt": "Design database schema with users and posts tables",
-    "task_type": "coding",
+    "prompt": "Design database schema with users table (3 fields: id, email, password_hash)",
+    "task_type": "analysis",
     "priority": 1,
-    "depends_on": []
+    "depends_on": [],
+    "estimated_minutes": 3
   }},
   {{
     "id": "task2",
-    "prompt": "Implement REST API endpoints",
+    "prompt": "Create schema.sql file with users table definition",
+    "task_type": "coding",
+    "priority": 1,
+    "depends_on": ["task1"],
+    "estimated_minutes": 2
+  }},
+  {{
+    "id": "task3",
+    "prompt": "Add tasks table to schema.sql with user_id foreign key",
     "task_type": "coding",
     "priority": 2,
-    "depends_on": ["task1"]
+    "depends_on": ["task2"],
+    "estimated_minutes": 3
   }}
 ]
 
 Task Types:
-- coding: Programming, implementation tasks
-- analysis: Research, planning, design tasks
-- simple: Quick tasks, documentation
+- coding: Writing/modifying code files
+- analysis: Research, design, planning (no code)
+- simple: Documentation, configs, < 2 min tasks
 - general: Everything else
 
-Do NOT include explanations or markdown. Only return the JSON array."""
+Do NOT include explanations, markdown, or code blocks. Return ONLY the raw JSON array."""
 
     def _parse_tasks_from_response(self, response_text: str) -> List[Task]:
         """
@@ -147,12 +174,18 @@ Do NOT include explanations or markdown. Only return the JSON array."""
             # Convert to Task objects
             tasks = []
             for item in task_data:
+                # Store estimated_minutes in metadata if provided
+                metadata = {}
+                if "estimated_minutes" in item:
+                    metadata["estimated_minutes"] = item["estimated_minutes"]
+
                 task = Task(
                     id=item.get("id", f"task{len(tasks)+1}"),
                     prompt=item.get("prompt", ""),
                     task_type=item.get("task_type", "general"),
                     priority=item.get("priority", 3),
-                    depends_on=item.get("depends_on", [])
+                    depends_on=item.get("depends_on", []),
+                    metadata=metadata if metadata else None
                 )
                 tasks.append(task)
 
@@ -394,46 +427,73 @@ class MetaAgentCLI:
 
     def _build_decomposition_prompt(self, user_input: str, max_tasks: int) -> str:
         """
-        Build the prompt for task decomposition
+        Build the prompt for task decomposition with atomic granularity
 
-        Reuses the same prompt format as API-based Meta-Agent
+        Uses same enhanced prompt as API-based Meta-Agent
         """
-        return f"""You are a project planning expert. Analyze this task and break it down into subtasks.
+        return f"""You are a project planning expert. Break down this task into ATOMIC, executable subtasks.
 
 User Task: {user_input}
 
-Requirements:
-1. Generate 3-{max_tasks} concrete, executable subtasks
-2. Each subtask should be specific and actionable
-3. Identify dependencies between tasks
-4. Classify each task type: coding, analysis, simple, or general
-5. Assign priority (1=highest, 5=lowest)
+CRITICAL Requirements:
+1. Generate 10-{max_tasks} SMALL, ATOMIC subtasks (prefer more smaller tasks over fewer large tasks)
+2. Each subtask MUST be completable in < 5 minutes
+3. Each subtask should modify 1-3 files maximum
+4. Break down by individual files, endpoints, or components - NOT by phases
+5. Identify dependencies between tasks precisely
+6. Classify task type: coding, analysis, simple, or general
+7. Assign priority (1=highest, 5=lowest)
+8. Estimate execution time in minutes
+
+Granularity Guidelines:
+❌ BAD (too broad):
+   - "Implement frontend-backend integration"
+   - "Add validation to all API endpoints"
+   - "Set up complete authentication system"
+   - "Build entire user interface"
+
+✅ GOOD (atomic):
+   - "Create API client helper in src/api/client.js"
+   - "Add Authorization header to API client requests"
+   - "Update TasksPage.jsx to use API client for fetching tasks"
+   - "Add email validation helper function in utils/validation.js"
+   - "Apply email validation to /api/register endpoint"
 
 Return ONLY a valid JSON array in this exact format:
 [
   {{
     "id": "task1",
-    "prompt": "Design database schema with users and posts tables",
-    "task_type": "coding",
+    "prompt": "Design database schema with users table (3 fields: id, email, password_hash)",
+    "task_type": "analysis",
     "priority": 1,
-    "depends_on": []
+    "depends_on": [],
+    "estimated_minutes": 3
   }},
   {{
     "id": "task2",
-    "prompt": "Implement REST API endpoints",
+    "prompt": "Create schema.sql file with users table definition",
+    "task_type": "coding",
+    "priority": 1,
+    "depends_on": ["task1"],
+    "estimated_minutes": 2
+  }},
+  {{
+    "id": "task3",
+    "prompt": "Add tasks table to schema.sql with user_id foreign key",
     "task_type": "coding",
     "priority": 2,
-    "depends_on": ["task1"]
+    "depends_on": ["task2"],
+    "estimated_minutes": 3
   }}
 ]
 
 Task Types:
-- coding: Programming, implementation tasks
-- analysis: Research, planning, design tasks
-- simple: Quick tasks, documentation
+- coding: Writing/modifying code files
+- analysis: Research, design, planning (no code)
+- simple: Documentation, configs, < 2 min tasks
 - general: Everything else
 
-Do NOT include explanations or markdown. Only return the JSON array."""
+Do NOT include explanations, markdown, or code blocks. Return ONLY the raw JSON array."""
 
     def _parse_tasks_from_response(self, response_text: str) -> List[Task]:
         """
@@ -466,12 +526,18 @@ Do NOT include explanations or markdown. Only return the JSON array."""
             # Convert to Task objects
             tasks = []
             for item in task_data:
+                # Store estimated_minutes in metadata if provided
+                metadata = {}
+                if "estimated_minutes" in item:
+                    metadata["estimated_minutes"] = item["estimated_minutes"]
+
                 task = Task(
                     id=item.get("id", f"task{len(tasks)+1}"),
                     prompt=item.get("prompt", ""),
                     task_type=item.get("task_type", "general"),
                     priority=item.get("priority", 3),
-                    depends_on=item.get("depends_on", [])
+                    depends_on=item.get("depends_on", []),
+                    metadata=metadata if metadata else None
                 )
                 tasks.append(task)
 

@@ -463,3 +463,61 @@ class MultiAgentScheduler:
                 result_text = result_text[:max_length] + "..."
 
             print(f"    Result: {result_text}")
+
+    def _analyze_workspace(self, workspace_path: str) -> Dict:
+        """
+        Analyze workspace state for agent context
+        
+        Args:
+            workspace_path: Path to workspace directory
+            
+        Returns:
+            Dictionary with workspace statistics:
+            - total_files: Total file count
+            - files_by_type: Dict of {extension: count}
+            - directory_structure: List of subdirectories
+            - completed_tasks: List of completed task IDs
+        """
+        from pathlib import Path
+        import os
+        
+        workspace = Path(workspace_path)
+        
+        if not workspace.exists():
+            return {
+                'total_files': 0,
+                'files_by_type': {},
+                'directory_structure': [],
+                'completed_tasks': []
+            }
+        
+        # Count files by type
+        total_files = 0
+        files_by_type = {}
+        
+        for file_path in workspace.rglob('*'):
+            if file_path.is_file():
+                total_files += 1
+                ext = file_path.suffix or 'no_extension'
+                files_by_type[ext] = files_by_type.get(ext, 0) + 1
+        
+        # Get directory structure (top level only)
+        directory_structure = [
+            d.name for d in workspace.iterdir() 
+            if d.is_dir() and not d.name.startswith('.')
+        ]
+        
+        # Get completed tasks from logger if available
+        completed_tasks = []
+        if self.logger:
+            completed_tasks = [
+                task_id for task_id, log in self.logger.task_logs.items()
+                if log.get('success', False)
+            ]
+        
+        return {
+            'total_files': total_files,
+            'files_by_type': files_by_type,
+            'directory_structure': directory_structure,
+            'completed_tasks': completed_tasks
+        }

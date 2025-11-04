@@ -34,6 +34,7 @@ from scheduler import MultiAgentScheduler, ExecutionMode
 from agents import ClaudeCLIAgent, CodexExecAgent, GeminiAgent
 from logger import ExecutionLogger
 from workspace_manager import WorkspaceManager
+from task_visualizer import TaskVisualizer
 
 
 # ============================================================================
@@ -199,6 +200,10 @@ async def run_cli_demo(workspace_path: str):
     print(f"✓ Task decomposition completed in {decompose_time:.2f}s")
     meta.print_task_tree(tasks)
 
+    # Initialize task visualizer
+    visualizer = TaskVisualizer(tasks)
+    print(visualizer.build_tree())
+
     # ========================================================================
     # Step 5: Execute Tasks (via CLI)
     # ========================================================================
@@ -208,6 +213,13 @@ async def run_cli_demo(workspace_path: str):
     scheduler = MultiAgentScheduler(agents, logger=logger)
     result = await scheduler.schedule(tasks, mode=ExecutionMode.AUTO)
 
+    # Update visualizer with final results
+    for task, task_result in zip(tasks, result.results):
+        status = "completed" if task_result.get('success') else "failed"
+        duration = task_result.get('latency', 0)
+        agent = task_result.get('agent', '')
+        visualizer.update_status(task.id, status, duration, agent)
+
     # ========================================================================
     # Step 6: Display Results
     # ========================================================================
@@ -215,6 +227,10 @@ async def run_cli_demo(workspace_path: str):
     print("=" * 70)
     print(" 📊 Execution Results")
     print("=" * 70)
+    print()
+
+    # Show final topology
+    print(visualizer.build_tree())
     print()
 
     # Success rate

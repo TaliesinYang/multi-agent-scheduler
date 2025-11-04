@@ -329,11 +329,10 @@ class CodexExecAgent(BaseAgent):
             timeout_val = timeout or self.default_timeout
 
             try:
-                # Use correct codex exec format with workspace-write permissions
+                # Use correct codex exec format with full-auto mode
                 args = [
                     "codex", "exec", prompt,
-                    "--sandbox", "workspace-write",      # Allow file creation in workspace
-                    "--ask-for-approval", "never",       # Auto-execute without prompts
+                    "--full-auto",                       # Enables workspace-write + auto-approval
                     "--skip-git-repo-check"
                 ]
 

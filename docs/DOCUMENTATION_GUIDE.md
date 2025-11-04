@@ -1,499 +1,294 @@
-# 📖 项目文档导航 & 演示说明
+# Project Documentation Navigation & Demo Instructions
 
-> **项目位置**: `/mnt/e/.../multi-agent-scheduler/`
-> **最后更新**: 2025年11月2日
-
----
-
-## 📚 核心文档（按推荐阅读顺序）
-
-### 1. **README.md** (16KB) ⭐⭐⭐⭐⭐
-**用途**: 项目主文档，周一演示的核心参考
-
-**包含内容**:
-- ✅ 项目概述和目标
-- ✅ 系统架构图（ASCII）
-- ✅ 快速开始指南
-- ✅ **三种运行模式**（Mock/CLI/API）🆕
-- ✅ **CLI安装和使用指南** 🆕
-- ✅ **成本对比表格**（节省67%）🆕
-- ✅ OS概念映射（进程调度、并发控制等）
-- ✅ 性能评估数据
-
-**关键章节**:
-- Line 23-59: 系统架构图
-- Line 94-175: 快速开始（含CLI模式）
-- Line 146-175: CLI使用指南（新增）
-- Line 255-282: OS概念映射
-
-**周一演示建议**:
-- 打开这个文件展示架构图
-- 指出CLI模式的成本优势
-- 解释OS概念映射
+> **Project Location**: `/mnt/e/.../multi-agent-scheduler/`
+> **Last Updated**: November 2, 2025
 
 ---
 
-### 2. **QUICK_REFERENCE.md** (3.7KB) ⭐⭐⭐⭐⭐
-**用途**: 周一演示快速参考卡（建议打印或单独显示）
+## Core Documentation (Recommended Reading Order)
 
-**包含内容**:
-- ✅ 5秒启动命令
-- ✅ 3句话项目介绍
-- ✅ 演示重点（必须提到的4点）
-- ✅ Q&A快速答案（6个常见问题）
-- ✅ 关键数字（87.4%, 6/6, ~4000行）
-- ✅ 紧急备选方案
+### 1. **README.md** (16KB)
+**Purpose**: Main project documentation, core reference for Monday demo
 
-**周一演示建议**:
-- **强烈建议打印这一页！**
-- 演示时放在手边随时参考
-- 记住关键数字：87.4%、6/6、~4000行
+**Contents**:
+- Project overview and objectives
+- System architecture diagram (ASCII)
+- Quick start guide
+- **Three execution modes** (Mock/CLI/API)
+- **CLI installation and usage guide**
+- **Cost comparison table** (67% savings)
+- OS concept mapping (process scheduling, concurrency control, etc.)
+- Performance evaluation data
 
----
+**Key Sections**:
+- Line 23-59: System architecture diagram
+- Line 94-175: Quick start (including CLI mode)
+- Line 146-175: CLI usage guide (newly added)
+- Line 255-282: OS concept mapping
 
-### 3. **DEMO_GUIDE.md** (11KB) ⭐⭐⭐⭐
-**用途**: 详细演示脚本（15分钟演示流程）
-
-**包含内容**:
-- ✅ 完整15分钟演示流程
-- ✅ 每个步骤的具体操作
-- ✅ 演示话术（可以直接念）
-- ✅ 代码展示位置（行号）
-- ✅ 预期问题和答案
-- ✅ 时间分配建议
-
-**关键章节**:
-- Line 30-88: 演示准备清单
-- Line 90-180: 详细演示脚本
-- Line 182-250: Q&A准备
-- Line 252-300: 备用方案
-
-**周一演示建议**:
-- 提前通读一遍
-- 演练2-3次确保流畅
-- 标记重点话术
+**Monday Demo Recommendations**:
+- Open this file to show architecture diagram
+- Highlight CLI mode cost advantages
+- Explain OS concept mapping
 
 ---
 
-### 4. **SMART_IMPLEMENTATION.md** (16KB) ⭐⭐⭐
-**用途**: 技术实现细节（给评分老师看）
+### 2. **QUICK_REFERENCE.md** (3.7KB)
+**Purpose**: Monday demo quick reference card (recommended to print or display separately)
 
-**包含内容**:
-- ✅ 实现目标和用户体验流程
-- ✅ 新增功能详细说明
-- ✅ 测试结果和性能指标
-- ✅ 代码统计（行数、文件数）
-- ✅ OS概念映射（扩展版）
-- ✅ 未来扩展方向
+**Contents**:
+- 5-second startup commands
+- 3-sentence project introduction
+- Demo highlights (4 key points to mention)
+- Q&A quick answers (6 common questions)
+- Key numbers (87.4%, 6/6, ~4000 lines)
+- Emergency fallback plan
 
-**关键数据**:
-- 总代码量: ~4000行
-- 核心代码: 1,954行
-- 文档: 1,239行
-- 性能提升: 87.4%
-- 测试通过率: 100% (6/6)
-
-**周一演示建议**:
-- 不需要在演示中详细讲
-- 演示后如果有技术问题可以参考
-- 给老师看展示工作量
+**Monday Demo Recommendations**:
+- **Strongly recommend printing this page!**
+- Keep it handy during demo for quick reference
+- Remember key numbers: 87.4%, 6/6, ~4000 lines
 
 ---
 
-### 5. **PROJECT_SUMMARY.md** (11KB) ⭐⭐⭐
-**用途**: 项目完成总结（证明完成度）
+### 3. **DEMO_GUIDE.md** (11KB)
+**Purpose**: Detailed demo script (15-minute demo flow)
 
-**包含内容**:
-- ✅ 项目里程碑
-- ✅ 功能完成度检查表
-- ✅ 测试结果汇总
-- ✅ 代码质量评估
-- ✅ 创新点总结
+**Contents**:
+- Complete 15-minute demo flow
+- Specific actions for each step
+- Presentation scripts (can be read directly)
+- Code display locations (line numbers)
+- Expected questions and answers
+- Time allocation suggestions
 
-**周一演示建议**:
-- 用于回答"完成度如何"的问题
-- 展示100%功能完成
+**Key Sections**:
+- Line 30-88: Demo preparation checklist
+- Line 90-180: Detailed demo script
+- Line 182-250: Q&A preparation
+- Line 252-300: Backup plans
 
----
-
-## 💻 演示程序（按推荐顺序）
-
-### 1. **smart_demo.py** (16KB) ⭐⭐⭐⭐⭐
-**用途**: 智能演示（推荐主要演示程序）
-
-**运行方式**:
-```bash
-# 快速测试（自动演示）
-python smart_demo.py --test
-
-# 预设场景（可选择示例）
-python smart_demo.py --preset
-
-# 交互模式（手动输入任务）
-python smart_demo.py --interactive
-```
-
-**演示内容**:
-- ✅ AI自动任务分解
-- ✅ 依赖关系识别
-- ✅ 混合模式调度
-- ✅ 并行执行展示
-- ✅ 性能统计报告
-
-**三种模式**:
-1. Mock模式（免费，演示推荐）
-2. CLI模式（订阅制，成本优化）🆕
-3. API模式（按量计费）
-
-**周一演示建议**:
-- **首选这个程序！**
-- 运行 `python smart_demo.py --test`
-- 展示完整智能工作流
+**Monday Demo Recommendations**:
+- Read through in advance
+- Rehearse 2-3 times for smooth delivery
+- Mark key talking points
 
 ---
 
-### 2. **demo_complex.py** (3KB) ⭐⭐⭐⭐
-**用途**: 复杂项目演示（展示依赖关系）
+### 4. **SMART_IMPLEMENTATION.md** (16KB)
+**Purpose**: Technical implementation details (for grading instructor)
 
-**运行方式**:
-```bash
-python demo_complex.py
-```
+**Contents**:
+- Implementation goals and user experience flow
+- Detailed explanation of new features
+- Test results and performance metrics
+- Code statistics (lines, files)
+- OS concept mapping (expanded version)
+- Future extension directions
 
-**演示内容**:
-- ✅ 6个任务的网站开发项目
-- ✅ 4层依赖关系
-- ✅ 混合模式批次执行
-- ✅ 并行 vs 串行对比
-- ✅ 性能提升29.7%
+**Key Data**:
+- Total code volume: ~4000 lines
+- Core code: 1,954 lines
+- Documentation: 1,239 lines
+- Performance improvement: 87.4%
+- Test pass rate: 100% (6/6)
 
-**依赖结构**:
-```
-Batch 1 (并行): task1, task2 - 设计阶段
-Batch 2 (并行): task3, task4 - 实现阶段
-Batch 3 (串行): task5 - 测试阶段
-Batch 4 (串行): task6 - 部署阶段
-```
-
-**周一演示建议**:
-- 用于展示复杂依赖关系处理
-- 强调并行执行优势
-- 运行时间约2秒
+**Monday Demo Recommendations**:
+- No need to detail during demo
+- Can reference for technical questions after demo
+- Shows work volume to instructor
 
 ---
 
-### 3. **demo.py** (12KB) ⭐⭐⭐
-**用途**: 基础演示（5个场景）
+### 5. **PROJECT_SUMMARY.md** (11KB)
+**Purpose**: Comprehensive project summary and achievements
 
-**运行方式**:
-```bash
-python demo.py
-# 然后选择场景 1-5
-```
+**Contents**:
+- Current implementation status
+- Feature list and completion status
+- Technical challenges solved
+- Team collaboration highlights
+- Test coverage and quality metrics
 
-**5个演示场景**:
-1. 基础并行调度
-2. 性能对比（串行 vs 并行）
-3. 依赖关系调度
-4. 智能Agent选择
-5. Mock Agent测试
-
-**周一演示建议**:
-- 备用程序（如果smart_demo有问题）
-- 可以快速展示单个功能点
+**Monday Demo Recommendations**:
+- Background material, not core demo content
+- Can provide to instructor for review
 
 ---
 
-## 🧪 测试程序
+## Technical Documentation
 
-### 1. **test_cli_agents.py** (7.6KB) ⭐⭐⭐⭐
-**用途**: CLI集成功能测试
+### 6. **100%_CLI_Implementation_Summary.md** (9KB)
+**Purpose**: CLI mode implementation technical details
 
-**运行方式**:
-```bash
-python test_cli_agents.py
-```
+**Contents**:
+- CLI agent design and architecture
+- Subscription vs pay-per-token cost analysis
+- Timeout handling and error recovery
+- Real execution logs and examples
 
-**测试内容**:
-- ✅ RobustCLIAgent初始化
-- ✅ ClaudeCLIAgent配置
-- ✅ GeminiAgent改进
-- ✅ 超时处理机制
-- ✅ JSON输出支持
-- ✅ 错误处理
-
-**测试结果**: 6/6通过（100%）
-
-**周一演示建议**:
-- 展示CLI功能的完整性
-- 证明代码质量和测试覆盖
+**Key Points**:
+- CLI mode monthly cost: ~$10
+- API mode monthly cost: ~$30-50
+- Cost savings: 67%
 
 ---
 
-### 2. **test_basic.py** (6.9KB) ⭐⭐⭐
-**用途**: 基础功能测试
+### 7. **SMART_AGENT_SELECTION_IMPLEMENTATION.md** (13KB)
+**Purpose**: Intelligent agent selection algorithm implementation
 
-**运行方式**:
-```bash
-python test_basic.py
-```
-
-**测试内容**:
-- ✅ Mock Agent功能
-- ✅ 并行执行
-- ✅ 串行执行
-- ✅ 依赖调度
-- ✅ 性能对比
-- ✅ Agent选择
-
-**测试结果**: 6/6通过（大部分通过，有小问题不影响功能）
+**Contents**:
+- Algorithm design principles
+- Task type classification
+- Agent capability scoring
+- Selection decision tree
+- Test cases and results
 
 ---
 
-## 🔧 核心代码文件
+### 8. **BUG_FIX_SUMMARY.md** (5KB)
+**Purpose**: Bug tracking and resolution history
 
-### 1. **scheduler.py** (13KB, 403行)
-**用途**: 核心调度引擎
-
-**关键实现**:
-- Line 122-155: 拓扑排序算法
-- Line 179-208: 并行执行
-- Line 210-237: 串行执行
-- Line 239-274: 混合模式执行
-
-**周一演示建议**:
-- 打开展示拓扑排序代码
-- 解释DAG和依赖分析
+**Contents**:
+- Major bugs fixed
+- Performance optimizations
+- Stability improvements
+- Test failure analysis
 
 ---
 
-### 2. **agents.py** (12KB, 370行)
-**用途**: AI Agent接口层
+### 9. **MONITORING_UPDATE.md** (11KB)
+**Purpose**: Performance monitoring and log system
 
-**关键实现**:
-- Line 14-44: BaseAgent基类
-- Line 47-180: RobustCLIAgent（CLI基类）🆕
-- Line 182-227: ClaudeAgent（API）
-- Line 230-254: ClaudeCLIAgent（CLI）🆕
-- Line 304-333: GeminiAgent（CLI改进）🆕
-
-**周一演示建议**:
-- 展示CLI支持代码
-- 指出超时处理逻辑
+**Contents**:
+- Real-time performance tracking
+- JSON log structure
+- Statistics aggregation
+- Resource utilization monitoring
 
 ---
 
-### 3. **meta_agent.py** (9.9KB, 323行)
-**用途**: AI任务分解引擎
+### 10. **TEST_RESULTS.md** (6KB)
+**Purpose**: Test execution results and analysis
 
-**关键实现**:
-- Line 35-78: 任务分解主函数
-- Line 80-117: 分解提示词构建
-- Line 119-158: JSON解析和容错
-
-**周一演示建议**:
-- 展示AI如何分解任务
-- 指出容错机制
+**Contents**:
+- Unit test results
+- Integration test results
+- Performance benchmark data
+- Success rate analysis
 
 ---
 
-## 📊 目前可以做到的功能说明
+### 11. **ARCHITECTURE.md** (Newly added)
+**Purpose**: System architecture comprehensive documentation
 
-### ✅ **核心功能（100%完成）**
+**Contents**:
+- Core component description
+- Execution flow diagrams
+- Design patterns applied
+- Performance optimization strategies
+- Error handling mechanisms
+- Scalability considerations
+- Security design
 
-#### 1. **智能任务分解**
-- ✅ 输入自然语言任务描述
-- ✅ AI自动分解为子任务
-- ✅ 自动识别依赖关系
-- ✅ 自动分配任务类型和优先级
-
-**演示命令**: `python smart_demo.py --test`
-
----
-
-#### 2. **智能调度执行**
-- ✅ 三种执行模式：
-  - 并行模式（无依赖）
-  - 串行模式（强制顺序）
-  - 混合模式（智能批次）🌟
-- ✅ DAG依赖图构建
-- ✅ 拓扑排序算法
-- ✅ 自动批次划分
-
-**演示命令**: `python demo_complex.py`
+**Monday Demo Recommendations**:
+- High-quality professional documentation
+- Can be referenced for in-depth technical questions
 
 ---
 
-#### 3. **CLI集成（新增）** 🆕
-- ✅ RobustCLIAgent基类
-- ✅ ClaudeCLIAgent支持
-- ✅ GeminiAgent CLI模式
-- ✅ 30秒超时保护
-- ✅ 自动进程清理
-- ✅ JSON输出支持
+## Demo Preparation Checklist
 
-**演示命令**: `python test_cli_agents.py`
+### One Day Before (Sunday)
 
----
+- [ ] Read through QUICK_REFERENCE.md (10 minutes)
+- [ ] Read through DEMO_GUIDE.md demo script (20 minutes)
+- [ ] Run complete demo once to verify all functions (15 minutes)
+- [ ] Prepare backup plan (check Mock mode works) (5 minutes)
+- [ ] Memorize key numbers: 87.4%, 6/6, ~4000 lines
+- [ ] Print QUICK_REFERENCE.md (recommended)
 
-#### 4. **智能Agent选择**
-- ✅ 根据任务类型选择Agent：
-  - coding → Claude
-  - simple → Gemini（免费）
-  - analysis → OpenAI
-- ✅ 自动负载均衡
-- ✅ 并发控制（Semaphore）
+### Monday Morning
 
-**演示位置**: `scheduler.py:84-103`
+- [ ] Test environment one more time (5 minutes)
+- [ ] Review QUICK_REFERENCE.md again (3 minutes)
+- [ ] Prepare demo laptop (charge, clean background)
+- [ ] Backup plan ready (USB drive with all code)
 
----
+### Right Before Demo (5 minutes before)
 
-#### 5. **性能优化**
-- ✅ 异步并发执行
-- ✅ 性能统计和对比
-- ✅ 实测提升：29.7% - 87.4%
-
-**演示命令**: 运行任何demo都会显示性能数据
+- [ ] Open necessary files (README.md, demo.py)
+- [ ] Set terminal font size (ensure back row visibility)
+- [ ] Close unnecessary applications
+- [ ] Put QUICK_REFERENCE.md beside laptop
+- [ ] Deep breath, you've got this!
 
 ---
 
-### 💰 **成本优化（新增）** 🆕
+## Quick Demo Flow (15 minutes)
 
-| 模式 | 成本 | 速度 | 适用场景 |
-|------|------|------|---------|
-| **Mock** | 免费 | 极快 | 测试、演示 |
-| **CLI** 🆕 | ~$10/月 | 快 | 日常使用 |
-| **API** | ~$30-50/月 | 快 | 重度使用 |
+### Phase 1: Introduction (2 minutes)
+1. Open README.md
+2. Show architecture diagram
+3. Explain core innovation: parallel execution + intelligent scheduling
 
-**成本节省**: CLI模式比API模式**节省67%**！
+### Phase 2: Live Demo (8 minutes)
+1. Run `python demo.py`
+2. Select "2. Performance Comparison"
+3. Explain running process (parallel execution)
+4. Show results: 87.4% performance improvement
+5. Briefly demo smart agent selection
 
----
-
-### 🎯 **OS概念映射（完整）**
-
-| OS概念 | 项目实现 | 代码位置 |
-|--------|---------|---------|
-| **进程调度** | Task调度 | `scheduler.py:276-313` |
-| **并发控制** | Semaphore限流 | `agents.py:19` |
-| **进程间通信** | 依赖传递 | `scheduler.py:105-121` |
-| **资源分配** | Agent选择 | `scheduler.py:84-103` |
-| **死锁预防** | DAG+拓扑排序 | `scheduler.py:122-155` |
+### Phase 3: Q&A + Summary (5 minutes)
+1. Refer to QUICK_REFERENCE.md to answer questions
+2. Emphasize OS concept mapping
+3. Mention future extensions
 
 ---
 
-## 🚀 周一演示推荐方案（7分钟）
+## Backup Plans
 
-### **方案A：完整流程演示**（推荐）
+### If Internet Connection Fails
+- Use Mock mode (no API required)
+- Command: `python demo.py` → Select "2. Use Mock Agents"
 
-```bash
-# 1. 智能分解演示（2分钟）
-python smart_demo.py --test
+### If Code Runs into Errors
+- Show pre-recorded terminal screenshots in TEST_RESULTS.md
+- Explain code architecture based on README.md
 
-# 2. 复杂项目演示（2分钟）
-python demo_complex.py
-
-# 3. 代码讲解（2分钟）
-# - 打开 scheduler.py:122-155
-# - 打开 agents.py:47-80
-# - 打开 README.md（成本对比表）
-
-# 4. Q&A（1分钟）
-# - 参考 QUICK_REFERENCE.md
-```
-
-**优点**:
-- ✅ 展示完整功能
-- ✅ 技术深度足够
-- ✅ 时间控制好
+### If Questions Can't Be Answered
+- Refer to QUICK_REFERENCE.md Q&A section
+- Honestly say: "Good question, I'll check documentation after and get back to you"
 
 ---
 
-### **方案B：快速演示**（适合时间紧张）
+## Important Notes
 
-```bash
-# 只运行smart_demo（3分钟）
-python smart_demo.py --test
-
-# 快速代码讲解（2分钟）
-# - 展示架构图（README.md）
-# - 展示拓扑排序（scheduler.py:122）
-
-# Q&A（2分钟）
-```
+1. **Time Control**: Each section must strictly control time, avoid over-explaining
+2. **Focus**: Core is demonstrating parallel execution performance improvement
+3. **Preparation**: Must rehearse at least 2 times in advance
+4. **Confidence**: Our code is high quality, believe in yourself!
 
 ---
 
-## 📝 演示清单（打印使用）
+## Post-Demo Materials
 
-### **演示前检查**
-- [ ] 虚拟环境已激活（`source venv/bin/activate`）
-- [ ] 依赖已安装（`pip install -r requirements.txt`）
-- [ ] 测试通过（`python test_cli_agents.py`）
-- [ ] 打印QUICK_REFERENCE.md
-- [ ] 通读DEMO_GUIDE.md
-- [ ] 准备好打开的文件：
-  - [ ] README.md
-  - [ ] scheduler.py
-  - [ ] agents.py
+### To Submit to Instructor
+- README.md (main documentation)
+- ARCHITECTURE.md (detailed technical documentation)
+- SMART_IMPLEMENTATION.md (implementation details)
+- Test result logs
 
-### **演示中要点**
-- [ ] 提到"87.4%性能提升"
-- [ ] 提到"CLI模式节省67%成本"
-- [ ] 提到"6/6测试通过"
-- [ ] 展示并行批次执行
-- [ ] 解释OS概念映射
-
-### **Q&A准备**
-- [ ] "如果AI分解错误？" → 有fallback机制
-- [ ] "能处理多复杂的任务？" → 测试过10+子任务
-- [ ] "成本如何？" → CLI模式$10/月 vs API $30-50/月
-- [ ] "与现有工具区别？" → 我们实现并行多Agent协作
+### To Share with Classmates
+- QUICK_REFERENCE.md (quick reference)
+- DEMO_GUIDE.md (demo guide)
 
 ---
 
-## 📞 紧急联系
+**Good luck with Monday's demo!**
 
-如果演示遇到问题：
-
-1. **程序无法运行**
-   - 使用demo.py作为备选
-   - 展示文档和代码架构
-
-2. **时间不够**
-   - 只运行smart_demo.py --test
-   - 重点讲性能和成本优势
-
-3. **技术问题**
-   - 参考SMART_IMPLEMENTATION.md
-   - 展示测试结果截图
-
----
-
-## ✅ 总结
-
-### **你有什么**
-- ✅ 5份完整文档（~60KB）
-- ✅ 3个演示程序（功能完整）
-- ✅ 2个测试套件（100%通过）
-- ✅ ~4000行代码（含文档）
-
-### **可以演示什么**
-- ✅ 智能任务分解
-- ✅ 依赖关系处理
-- ✅ 并行调度执行
-- ✅ 性能提升（29-87%）
-- ✅ 成本优化（CLI模式）
-- ✅ OS概念映射
-
-### **准备程度**
-- 🟢 代码：100%完成
-- 🟢 测试：100%通过
-- 🟢 文档：100%完整
-- 🟢 演示：随时可用
-
-**状态：完全就绪！周一加油！🚀**
-
----
-
-**文档更新时间**: 2025-11-02
-**项目状态**: ✅ Ready for Demo
+**Key Numbers to Remember**:
+- Performance improvement: 87.4%
+- Test success rate: 100% (6/6)
+- Total code: ~4000 lines
+- Cost savings: 67%

@@ -4,7 +4,7 @@
 
 ---
 
-## ⚡ 5-Second Startup
+## 5-Second Startup
 
 ```bash
 cd multi-agent-scheduler
@@ -16,7 +16,7 @@ python smart_demo.py --preset
 
 ---
 
-## 🎯 3-Sentence Introduction
+## 3-Sentence Introduction
 
 1. **Problem**: AI agent systems execute serially, inefficient for multi-task scenarios
 2. **Solution**: Smart scheduler = AI auto-decomposition + parallel execution
@@ -24,7 +24,7 @@ python smart_demo.py --preset
 
 ---
 
-## 💡 Demo Highlights (Must-Mention)
+## Demo Highlights (Must-Mention)
 
 1. **AI Auto-Decomposition** - "See, just input 'develop website', AI auto-splits into 5 concrete tasks"
 2. **Dependency Recognition** - "AI also auto-identifies which tasks depend on others"
@@ -33,7 +33,7 @@ python smart_demo.py --preset
 
 ---
 
-## 🗂️ File Quick Lookup
+## File Quick Lookup
 
 | File | Lines | Focus On |
 |------|------|--------|
@@ -44,7 +44,7 @@ python smart_demo.py --preset
 
 ---
 
-## 🎤 Q&A Quick Answers
+## Q&A Quick Answers
 
 **Q: What if AI decomposition fails?**
 A: "We have fallback mechanisms, and manual correction is possible. Tests show 95% success rate."
@@ -63,7 +63,7 @@ A: "Existing tools are serial Q&A. We implement parallel multi-agent collaborati
 
 ---
 
-## 📊 Key Numbers (Memorize These 3)
+## Key Numbers (Memorize These 3)
 
 - **87.4%** - Performance improvement (vs serial execution)
 - **~4000 lines** - Complete project code
@@ -71,7 +71,7 @@ A: "Existing tools are serial Q&A. We implement parallel multi-agent collaborati
 
 ---
 
-## 🚨 Emergency Fallback
+## Emergency Fallback
 
 **If smart_demo.py has issues**:
 ```bash
@@ -88,39 +88,39 @@ python demo.py
 
 ---
 
-## ⏱️ Time Allocation (15 minutes)
+## Time Allocation (15 minutes)
 
 | Section | Time | Content |
 |------|------|------|
 | Opening | 2 min | Problem intro |
-| **Demo** | **8 min** | **Run smart_demo** ⭐ |
+| **Demo** | **8 min** | **Run smart_demo** |
 | OS Concepts | 3 min | Code mapping |
 | Q&A | 2 min | Answer questions |
 
 ---
 
-## 🎯 Success Criteria
+## Success Criteria
 
-- ✅ Demonstrated AI auto-decomposition
-- ✅ Demonstrated parallel execution
-- ✅ Explained 87% performance improvement
-- ✅ Mapped OS concepts
-- ✅ Answered at least 1 question
+- Demonstrated AI auto-decomposition
+- Demonstrated parallel execution
+- Explained 87% performance improvement
+- Mapped OS concepts
+- Answered at least 1 question
 
 ---
 
-## 📞 Final Check (Monday Morning)
+## Final Check (Monday Morning)
 
 ```bash
 # 30-second verification
 python smart_demo.py --test
 
-# See "✅ Quick test PASSED" and you're good
+# See "Quick test PASSED" and you're good
 ```
 
 ---
 
-## 💪 Confidence Points
+## Confidence Points
 
 1. **Complete Features** - All promised features implemented
 2. **Tests Passing** - 6/6 tests, 100% success
@@ -128,10 +128,8 @@ python smart_demo.py --test
 4. **Code Quality** - Clear, well-commented, complete docs
 5. **Outstanding Innovation** - AI decomposition + parallel scheduling, fills research gap
 
-**You're ready! Present with confidence!** 🚀
-
----
+**You're ready! Present with confidence!** ---
 
 **Print Date**: ___________
 **Demo Date**: Monday
-**Final Reminder**: Take a deep breath, keep smiling 😊
+**Final Reminder**: Take a deep breath, keep smiling 

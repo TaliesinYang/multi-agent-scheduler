@@ -142,7 +142,18 @@ Task Types:
 - simple: Documentation, configs, < 2 min tasks
 - general: Everything else
 
-Do NOT include explanations, markdown, or code blocks. Return ONLY the raw JSON array."""
+CRITICAL OUTPUT REQUIREMENTS:
+- Return ONLY the raw JSON array starting with '[' and ending with ']'
+- Do NOT include any explanations, Chinese text, English descriptions, or markdown
+- Do NOT wrap the JSON in code blocks (no ```json or ```)
+- Do NOT ask questions or request clarification
+- Start your response immediately with '[' character
+- If unsure, make reasonable assumptions and provide the JSON array
+
+Example of CORRECT output format (start immediately with '['):
+[
+  {{"id": "task1", "prompt": "...", "task_type": "coding", "priority": 1, "depends_on": [], "estimated_minutes": 3}}
+]"""
 
     def _parse_tasks_from_response(self, response_text: str) -> List[Task]:
         """
@@ -415,8 +426,29 @@ class MetaAgentCLI:
             result = await self.cli_agent.call(prompt, timeout=60)
 
             if result['success']:
-                tasks = self._parse_tasks_from_response(result['result'])
-                return tasks
+                response_text = result['result']
+
+                # Claude CLI returns wrapped JSON: {"type":"result", "result":"actual content"}
+                # We need to extract the actual content from the nested structure
+                try:
+                    # Try to parse as JSON to unwrap the response
+                    response_json = json.loads(response_text)
+
+                    # Extract the 'result' field which contains the actual task list
+                    if 'result' in response_json and isinstance(response_json['result'], str):
+                        actual_content = response_json['result']
+                    else:
+                        # If no nested result, use the whole response
+                        actual_content = response_text
+
+                    # Parse the actual task list JSON
+                    tasks = self._parse_tasks_from_response(actual_content)
+                    return tasks
+
+                except json.JSONDecodeError:
+                    # If outer JSON parsing fails, try parsing the raw text directly
+                    tasks = self._parse_tasks_from_response(response_text)
+                    return tasks
             else:
                 error = result.get('error', 'Unknown error')
                 print(f"⚠️  CLI decomposition failed: {error}")
@@ -425,6 +457,7 @@ class MetaAgentCLI:
 
         except Exception as e:
             print(f"⚠️  Meta-Agent CLI error: {e}")
+            print(f"⚠️  Error details: {type(e).__name__}")
             print("⚠️  Using fallback: single task")
             return self._create_fallback_task(user_input)
 
@@ -496,7 +529,18 @@ Task Types:
 - simple: Documentation, configs, < 2 min tasks
 - general: Everything else
 
-Do NOT include explanations, markdown, or code blocks. Return ONLY the raw JSON array."""
+CRITICAL OUTPUT REQUIREMENTS:
+- Return ONLY the raw JSON array starting with '[' and ending with ']'
+- Do NOT include any explanations, Chinese text, English descriptions, or markdown
+- Do NOT wrap the JSON in code blocks (no ```json or ```)
+- Do NOT ask questions or request clarification
+- Start your response immediately with '[' character
+- If unsure, make reasonable assumptions and provide the JSON array
+
+Example of CORRECT output format (start immediately with '['):
+[
+  {{"id": "task1", "prompt": "...", "task_type": "coding", "priority": 1, "depends_on": [], "estimated_minutes": 3}}
+]"""
 
     def _parse_tasks_from_response(self, response_text: str) -> List[Task]:
         """

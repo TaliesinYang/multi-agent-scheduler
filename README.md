@@ -12,7 +12,9 @@ Current AI agent systems primarily use serial execution mode, where one task mus
 
 This project implements a **Multi-Agent Intelligent Scheduler** capable of:
 
-- 🧠 **Intelligent Task Decomposition**: Uses AI to automatically break down complex tasks into executable subtasks (NEW!)
+- 🧠 **Atomic Task Decomposition**: AI automatically breaks tasks into 15-20 atomic subtasks (<5min each) (IMPROVED!)
+- 📊 **Real-time Topology Visualization**: Live dependency graph with progress tracking (NEW!)
+- 📁 **Workspace Isolation**: File operations in dedicated workspaces with session continuity (NEW!)
 - 🚀 **Smart Scheduling**: Automatically analyzes task dependencies to determine parallel or serial execution
 - 💰 **Cost Optimization**: Selects the most suitable AI based on task type (simple tasks use free Gemini, complex tasks use Claude)
 - ⚡ **Performance Improvement**: Achieves 40-60% latency reduction through parallel execution
@@ -73,15 +75,28 @@ This project implements a **Multi-Agent Intelligent Scheduler** capable of:
    - Asynchronous calls and concurrency control
    - Performance statistics and monitoring
 
-3. **Scheduler** (`scheduler.py`)
+3. **Task Visualizer** (`task_visualizer.py`) 🆕
+   - Real-time ASCII topology display
+   - Dependency-aware batch grouping
+   - Status tracking (pending/in_progress/completed/failed)
+   - Progress bar with completion percentage
+   - Support for dynamic subtask insertion
+
+4. **Scheduler** (`scheduler.py`)
    - Task dependency analysis (DAG construction)
    - Topological sorting and batch division
    - Parallel/serial/hybrid execution
    - Intelligent agent selection strategies
 
-4. **Smart Demo** (`smart_demo.py`) 🆕
+5. **Workspace Manager** (`workspace_manager.py`) 🆕
+   - Isolated workspace directories
+   - Session-based continuous development
+   - Metadata tracking and state management
+
+6. **Smart Demo** (`smart_demo.py`, `demo_cli_full.py`) 🆕
    - Complete intelligent workflow
    - Automatic task decomposition + parallel scheduling
+   - 100% CLI-based execution (no API keys required)
    - Three execution modes: API, CLI, Mock 🆕
    - Interactive and preset modes
    - Performance analysis and reporting

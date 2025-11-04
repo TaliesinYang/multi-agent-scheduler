@@ -6,23 +6,23 @@
 
 ---
 
-## 📖 Project Overview
+## Project Overview
 
 Current AI agent systems primarily use serial execution mode, where one task must complete before the next can begin. This approach is inefficient when handling parallelizable tasks, such as simultaneously generating multiple design proposals or concurrently developing multiple functional modules.
 
 This project implements a **Multi-Agent Intelligent Scheduler** capable of:
 
-- 🧠 **Atomic Task Decomposition**: AI automatically breaks tasks into 15-20 atomic subtasks (<5min each) (IMPROVED!)
-- 📊 **Real-time Topology Visualization**: Live dependency graph with progress tracking (NEW!)
-- 📁 **Workspace Isolation**: File operations in dedicated workspaces with session continuity (NEW!)
-- 🚀 **Smart Scheduling**: Automatically analyzes task dependencies to determine parallel or serial execution
-- 💰 **Cost Optimization**: Selects the most suitable AI based on task type (simple tasks use free Gemini, complex tasks use Claude)
-- ⚡ **Performance Improvement**: Achieves 40-60% latency reduction through parallel execution
-- 🎯 **Personal Use Scenarios**: Designed for individual users without requiring enterprise-level deployment
+- **Atomic Task Decomposition**: AI automatically breaks tasks into 15-20 atomic subtasks (<5min each)
+- **Real-time Topology Visualization**: Live dependency graph with progress tracking
+- **Workspace Isolation**: File operations in dedicated workspaces with session continuity
+- **Smart Scheduling**: Automatically analyzes task dependencies to determine parallel or serial execution
+- **Cost Optimization**: Selects the most suitable AI based on task type (simple tasks use free Gemini, complex tasks use Claude)
+- **Performance Improvement**: Achieves 40-60% latency reduction through parallel execution
+- **Personal Use Scenarios**: Designed for individual users without requiring enterprise-level deployment
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```
        User Input: "Build a website"
@@ -51,7 +51,7 @@ This project implements a **Multi-Agent Intelligent Scheduler** capable of:
    │   ▼                    ▼          ▼        │
    │ ┌──────┐          ┌────────┐  ┌────────┐  │
    │ │Claude│          │ OpenAI │  │ Gemini │  │
-   │ │API/CLI│ 🆕      │  API   │  │  CLI   │  │
+   │ │API/CLI│          │  API   │  │  CLI   │  │
    │ └──────┘          └────────┘  └────────┘  │
    │                                             │
    └─────────────────────────────────────────────┘
@@ -62,7 +62,7 @@ This project implements a **Multi-Agent Intelligent Scheduler** capable of:
 
 ### Core Components
 
-1. **Meta-Agent** (`meta_agent.py`) 🆕
+1. **Meta-Agent** (`meta_agent.py`)
    - AI-driven task decomposition
    - Automatic dependency analysis
    - Task complexity assessment
@@ -70,12 +70,12 @@ This project implements a **Multi-Agent Intelligent Scheduler** capable of:
 
 2. **Agent Manager** (`agents.py`)
    - Unified AI agent interface
-   - Support for Claude, OpenAI, Gemini (both API and CLI) 🆕
-   - CLI agents with timeout handling and process cleanup 🆕
+   - Support for Claude, OpenAI, Gemini (both API and CLI)
+   - CLI agents with timeout handling and process cleanup
    - Asynchronous calls and concurrency control
    - Performance statistics and monitoring
 
-3. **Task Visualizer** (`task_visualizer.py`) 🆕
+3. **Task Visualizer** (`task_visualizer.py`)
    - Real-time ASCII topology display
    - Dependency-aware batch grouping
    - Status tracking (pending/in_progress/completed/failed)
@@ -88,16 +88,16 @@ This project implements a **Multi-Agent Intelligent Scheduler** capable of:
    - Parallel/serial/hybrid execution
    - Intelligent agent selection strategies
 
-5. **Workspace Manager** (`workspace_manager.py`) 🆕
+5. **Workspace Manager** (`workspace_manager.py`)
    - Isolated workspace directories
    - Session-based continuous development
    - Metadata tracking and state management
 
-6. **Smart Demo** (`smart_demo.py`, `demo_cli_full.py`) 🆕
+6. **Smart Demo** (`smart_demo.py`, `demo_cli_full.py`)
    - Complete intelligent workflow
    - Automatic task decomposition + parallel scheduling
    - 100% CLI-based execution (no API keys required)
-   - Three execution modes: API, CLI, Mock 🆕
+   - Three execution modes: API, CLI, Mock
    - Interactive and preset modes
    - Performance analysis and reporting
 
@@ -108,7 +108,7 @@ This project implements a **Multi-Agent Intelligent Scheduler** capable of:
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -160,7 +160,7 @@ python demo.py
 # Select "1. Use Real API"
 ```
 
-### Using CLI Agents (Cost-Effective!) 🆕
+### Using CLI Agents (Cost-Effective)
 
 CLI mode uses subscription-based services instead of pay-per-token APIs, significantly reducing costs (~$10/month vs $30-50/month).
 
@@ -188,10 +188,10 @@ python smart_demo.py
 | Mode | Meta-Agent | Execution | Monthly Cost | Best For |
 |------|-----------|-----------|-------------|----------|
 | **Mock** | Fallback | Simulated | Free | Testing, demos |
-| **CLI** 🆕 | API | CLI tools | ~$10 | Regular use, cost-sensitive |
+| **CLI** | API | CLI tools | ~$10 | Regular use, cost-sensitive |
 | **API** | API | API | ~$30-50 | Heavy usage, enterprise |
 
-### Smart Demo (Recommended!) 🆕
+### Smart Demo (Recommended)
 
 Intelligent demo with AI-powered automatic task decomposition:
 
@@ -201,7 +201,7 @@ python smart_demo.py
 # Select "3. Mock mode"
 # Then input a complex task, e.g.: "Build a todo list web application"
 
-# CLI mode (subscription-based, cost-effective) 🆕
+# CLI mode (subscription-based, cost-effective)
 export ANTHROPIC_API_KEY="sk-ant-api03-..."  # For Meta-Agent
 python smart_demo.py
 # Select "2. CLI mode"
@@ -231,7 +231,7 @@ python smart_demo.py --interactive
 
 ---
 
-## 🎯 Usage Examples
+## Usage Examples
 
 ### Basic Parallel Scheduling
 
@@ -296,7 +296,7 @@ result = await scheduler.schedule(tasks)
 
 ---
 
-## 🎮 Demo Scenarios
+## Demo Scenarios
 
 After running `python demo.py`, you can choose from the following demonstrations:
 
@@ -308,7 +308,7 @@ After running `python demo.py`, you can choose from the following demonstrations
 
 ---
 
-## 🧠 Operating System Concept Mapping
+## Operating System Concept Mapping
 
 This project directly implements and demonstrates core OS concepts:
 
@@ -338,7 +338,7 @@ This project directly implements and demonstrates core OS concepts:
 
 ---
 
-## 📊 Performance Evaluation
+## Performance Evaluation
 
 ### Test Scenario: 4 Independent Tasks
 
@@ -359,7 +359,7 @@ This project directly implements and demonstrates core OS concepts:
 
 ---
 
-## 🛠️ Project Structure
+## Project Structure
 
 ```
 multi-agent-scheduler/
@@ -398,7 +398,7 @@ multi-agent-scheduler/
 
 ---
 
-## 🎤 Presentation Script (15 minutes)
+## Presentation Script (15 minutes)
 
 ### 1. Problem Introduction (2 minutes)
 
@@ -434,7 +434,7 @@ python demo.py
 
 ---
 
-## 🔮 Future Extensions
+## Future Extensions
 
 - [ ] Web UI (Streamlit/Gradio)
 - [ ] DAG visualization (D3.js)
@@ -447,25 +447,25 @@ python demo.py
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 This is an academic project, and discussions and suggestions are welcome.
 
 ---
 
-## 📄 License
+## License
 
 This project is for educational purposes and follows the MIT License.
 
 ---
 
-## 👥 Team
+## Team
 
 CSCI-6650 Operating Systems - Group Project
 
 ---
 
-## 📚 References
+## References
 
 1. Tran, K.-T., et al. (2025). Multi-Agent Collaboration Mechanisms: A Survey of LLMs. arXiv:2501.06322.
 2. Rasal, S., & Maheshwary, G. (2024). Orchestrated Problem Solving with Multi-Agent LLMs. arXiv:2402.16713.
@@ -475,4 +475,4 @@ CSCI-6650 Operating Systems - Group Project
 
 **Last Updated**: January 2025
 
-**Demo Readiness Status**: ✅ Ready to run immediately
+**Demo Readiness Status**: Ready to run immediately

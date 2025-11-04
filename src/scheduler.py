@@ -61,8 +61,8 @@ class MultiAgentScheduler:
         self.logger = logger
 
         # Load agent configuration
-        from config import AgentConfig
-        from agent_selector import SmartAgentSelector
+        from src.config import AgentConfig
+        from src.agent_selector import SmartAgentSelector
 
         self.config = AgentConfig.load(config_path)
         self.agent_selector = SmartAgentSelector(self.config)

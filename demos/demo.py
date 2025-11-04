@@ -6,8 +6,8 @@ Demo program: Showcasing core features and performance comparison
 import asyncio
 import sys
 from typing import Dict
-from agents import ClaudeAgent, OpenAIAgent, GeminiAgent, MockAgent
-from scheduler import MultiAgentScheduler, Task, ExecutionMode
+from src.agents import ClaudeAgent, OpenAIAgent, GeminiAgent, MockAgent
+from src.scheduler import MultiAgentScheduler, Task, ExecutionMode
 
 
 def print_header(title: str):

@@ -8,7 +8,7 @@ import asyncio
 import json
 from typing import List, Dict, Optional
 from anthropic import AsyncAnthropic
-from scheduler import Task
+from src.scheduler import Task
 
 
 class MetaAgent:

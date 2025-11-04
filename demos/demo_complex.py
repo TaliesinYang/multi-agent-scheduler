@@ -4,8 +4,8 @@ Shows how the scheduler handles complex dependencies
 """
 
 import asyncio
-from scheduler import MultiAgentScheduler, Task, ExecutionMode
-from agents import MockAgent
+from src.scheduler import MultiAgentScheduler, Task, ExecutionMode
+from src.agents import MockAgent
 
 async def main():
     print("\n" + "="*60)

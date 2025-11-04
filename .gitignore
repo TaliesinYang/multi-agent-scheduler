@@ -7,10 +7,16 @@ __pycache__/
 venv/
 env/
 ENV/
+*.egg-info/
+dist/
+build/
+.eggs/
 
 # API Keys (NEVER commit!)
+src/config.py
 config.py
 .env
+.env.local
 *.key
 *.pem
 
@@ -35,3 +41,6 @@ workspaces/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Documentation build
+docs/_build/

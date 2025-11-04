@@ -4,8 +4,8 @@ Verify that core system functionality works properly
 """
 
 import asyncio
-from agents import MockAgent
-from scheduler import MultiAgentScheduler, Task, ExecutionMode
+from src.agents import MockAgent
+from src.scheduler import MultiAgentScheduler, Task, ExecutionMode
 
 
 async def test_mock_agents():

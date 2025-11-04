@@ -11,7 +11,7 @@ Note: These tests verify code structure without requiring actual CLI tools insta
 """
 
 import asyncio
-from agents import RobustCLIAgent, ClaudeCLIAgent, GeminiAgent
+from src.agents import RobustCLIAgent, ClaudeCLIAgent, GeminiAgent
 
 
 def test_robust_cli_agent_init():

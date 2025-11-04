@@ -29,12 +29,12 @@ import argparse
 from typing import Dict
 from datetime import datetime
 from pathlib import Path
-from meta_agent import MetaAgentCLI
-from scheduler import MultiAgentScheduler, ExecutionMode
-from agents import ClaudeCLIAgent, CodexExecAgent, GeminiAgent
-from logger import ExecutionLogger
-from workspace_manager import WorkspaceManager
-from task_visualizer import TaskVisualizer
+from src.meta_agent import MetaAgentCLI
+from src.scheduler import MultiAgentScheduler, ExecutionMode
+from src.agents import ClaudeCLIAgent, CodexExecAgent, GeminiAgent
+from src.logger import ExecutionLogger
+from src.workspace_manager import WorkspaceManager
+from src.task_visualizer import TaskVisualizer
 
 
 # ============================================================================

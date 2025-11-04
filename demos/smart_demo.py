@@ -15,9 +15,9 @@ import time
 from typing import Dict, List
 from dotenv import load_dotenv
 
-from meta_agent import MetaAgent
-from scheduler import MultiAgentScheduler, Task, ExecutionMode
-from agents import ClaudeAgent, ClaudeCLIAgent, OpenAIAgent, GeminiAgent, MockAgent
+from src.meta_agent import MetaAgent
+from src.scheduler import MultiAgentScheduler, Task, ExecutionMode
+from src.agents import ClaudeAgent, ClaudeCLIAgent, OpenAIAgent, GeminiAgent, MockAgent
 
 
 class SmartSchedulerDemo:

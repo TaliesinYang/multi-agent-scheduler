@@ -159,28 +159,14 @@ Example of CORRECT output format (start immediately with '['):
         """
         Parse AI response into Task objects
 
-        Handles both clean JSON and markdown-wrapped JSON responses
+        NOTE: CLI format unwrapping (Claude/Gemini wrappers) and markdown removal
+        is now handled by CLIOutputAdapter in agents.py, so we expect clean JSON here.
         """
         try:
             # Clean up response text
             text = response_text.strip()
 
-            # First, try to extract from Claude CLI wrapper format
-            # Claude CLI with --output-format json returns: {"type":"result","result":"..."}
-            try:
-                wrapper = json.loads(text)
-                if isinstance(wrapper, dict) and 'result' in wrapper:
-                    text = wrapper['result']
-            except:
-                pass  # Not a wrapper format, continue with original text
-
-            # Remove markdown code blocks if present
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0].strip()
-
-            # Parse JSON
+            # Parse JSON (adapter has already unwrapped CLI formats and removed markdown)
             task_data = json.loads(text)
 
             # Convert to Task objects
@@ -591,28 +577,14 @@ Example of CORRECT output format (start immediately with '['):
         """
         Parse AI response into Task objects
 
-        Handles both clean JSON and markdown-wrapped JSON responses
+        NOTE: CLI format unwrapping (Claude/Gemini wrappers) and markdown removal
+        is now handled by CLIOutputAdapter in agents.py, so we expect clean JSON here.
         """
         try:
             # Clean up response text
             text = response_text.strip()
 
-            # First, try to extract from Claude CLI wrapper format
-            # Claude CLI with --output-format json returns: {"type":"result","result":"..."}
-            try:
-                wrapper = json.loads(text)
-                if isinstance(wrapper, dict) and 'result' in wrapper:
-                    text = wrapper['result']
-            except:
-                pass  # Not a wrapper format, continue with original text
-
-            # Remove markdown code blocks if present
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0].strip()
-
-            # Parse JSON
+            # Parse JSON (adapter has already unwrapped CLI formats and removed markdown)
             task_data = json.loads(text)
 
             # Convert to Task objects

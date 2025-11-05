@@ -10,6 +10,7 @@ import shlex
 from typing import Dict, Optional
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
+from src.cli_adapters import CLIOutputAdapter
 
 
 class BaseAgent:
@@ -144,8 +145,14 @@ class RobustCLIAgent(BaseAgent):
                 if process.returncode == 0:
                     result_text = stdout.decode('utf-8').strip()
 
+                    # NEW: Unwrap CLI-specific format using adapter
+                    unwrapped = CLIOutputAdapter.unwrap(result_text)
+                    clean_content = unwrapped['content']
+                    cli_metadata = unwrapped['metadata']
+                    cli_format = unwrapped['format']
+
                     # Estimate tokens (rough approximation for CLI agents)
-                    estimated_tokens = len(prompt.split()) + len(result_text.split())
+                    estimated_tokens = len(prompt.split()) + len(clean_content.split())
 
                     # Update statistics
                     self.call_count += 1
@@ -154,7 +161,9 @@ class RobustCLIAgent(BaseAgent):
 
                     return {
                         "agent": self.name,
-                        "result": result_text,
+                        "result": clean_content,  # Standardized content
+                        "metadata": cli_metadata,  # CLI-specific metadata
+                        "cli_format": cli_format,  # Format identifier (claude/gemini/raw)
                         "latency": latency,
                         "tokens": estimated_tokens,
                         "success": True

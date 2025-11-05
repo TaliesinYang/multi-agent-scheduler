@@ -16,8 +16,8 @@ Example:
 """
 
 from typing import Dict, List, Optional, Tuple
-from config import AgentConfig
-from scheduler import Task
+from src.config import AgentConfig
+from src.scheduler import Task
 
 
 class SmartAgentSelector:

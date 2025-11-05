@@ -20,6 +20,12 @@ config.py
 *.key
 *.pem
 
+# CLI Local Configurations (personal settings)
+.claude/settings.local.json
+.gemini/settings.local.json
+.gemini/.env
+.claude/.env
+
 # IDE
 .vscode/
 .idea/
@@ -44,3 +50,4 @@ htmlcov/
 
 # Documentation build
 docs/_build/
+*.orig

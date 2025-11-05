@@ -191,6 +191,55 @@ python smart_demo.py
 | **CLI** | API | CLI tools | ~$10 | Regular use, cost-sensitive |
 | **API** | API | API | ~$30-50 | Heavy usage, enterprise |
 
+### CLI Configuration
+
+This project includes project-level CLI configurations that override your global settings to ensure consistent behavior across all team members.
+
+#### Configuration Files
+
+The project provides three CLI configuration directories:
+
+**1. Gemini CLI Configuration** (`.gemini/`)
+- `.gemini/GEMINI.md` - Project-specific context and instructions
+  - Forces English responses (overrides global Chinese preference)
+  - Enforces JSON format for task decomposition
+  - Disables three-stage workflow format
+- `.gemini/settings.json` - Model and parameter settings
+
+**2. Claude CLI Configuration** (`.claude/`)
+- `.claude/settings.json` - Project permissions and preferences
+  - Allows reading project files
+  - Permits running Python and Git commands
+  - Blocks destructive operations
+
+**3. Codex CLI Configuration**
+- `AGENTS.md` - Project context and coding standards
+  - Describes project architecture
+  - Specifies Python style guidelines (PEP 8, type hints)
+  - Defines Codex's role in the system
+
+#### How It Works
+
+CLI tools follow this priority order (highest to lowest):
+1. **Command-line arguments** (temporary overrides)
+2. **Project settings** (`.claude/settings.json`, `.gemini/settings.json`)
+3. **User global settings** (`~/.claude/`, `~/.gemini/`)
+4. **System defaults**
+
+**Important**: Project-level configurations are committed to version control, ensuring all team members get the same agent behavior. Personal local settings (`.claude/settings.local.json`, `.gemini/settings.local.json`) are gitignored.
+
+#### Customizing for Your Workflow
+
+To add personal local overrides without affecting the team:
+
+```bash
+# Create local settings (not tracked by Git)
+echo '{"model": "claude-opus-4-20250514"}' > .claude/settings.local.json
+echo '{"temperature": 0.9}' > .gemini/settings.local.json
+```
+
+These local files will override project settings for your machine only.
+
 ### Smart Demo (Recommended)
 
 Intelligent demo with AI-powered automatic task decomposition:

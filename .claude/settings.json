@@ -1,0 +1,35 @@
+{
+  "model": "claude-sonnet-4-5-20250929",
+  "permissions": {
+    "allow": [
+      "Read(**/*.py)",
+      "Read(**/*.yaml)",
+      "Read(**/*.json)",
+      "Read(**/*.md)",
+      "Read(logs/**/*)",
+      "Read(workspaces/**/*)",
+      "Read(tests/**/*)",
+      "Bash(python3:*)",
+      "Bash(pytest:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(tree:*)"
+    ],
+    "deny": [
+      "Bash(rm:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Read(.env)",
+      "Read(**/.env)"
+    ]
+  },
+  "sandbox": {
+    "enabled": false
+  },
+  "env": {
+    "PYTHONPATH": "./src"
+  }
+}

@@ -383,21 +383,66 @@ if __name__ == "__main__":
 
 class MetaAgentCLI:
     """
-    Meta-Agent using Claude CLI for task decomposition
+    Meta-Agent using CLI agents for task decomposition
 
-    Uses claude command directly instead of API.
-    No API key required - only needs Claude CLI subscription.
+    Supports multiple CLI agents: Claude, Codex, or Gemini.
+    No API key required - only needs CLI subscription.
 
     Example:
+        # Use default agent from config (claude by default)
         meta = MetaAgentCLI()
+
+        # Explicitly specify agent
+        meta = MetaAgentCLI(agent_type='codex')
+        meta = MetaAgentCLI(agent_type='gemini')
+
         tasks = await meta.decompose_task("Build a web app")
     """
 
-    def __init__(self):
-        """Initialize Meta-Agent with Claude CLI"""
+    def __init__(self, agent_type: Optional[str] = None, config_path: Optional[str] = None):
+        """
+        Initialize Meta-Agent with configurable CLI agent
+
+        Args:
+            agent_type: Agent to use for decomposition ('claude', 'codex', 'gemini').
+                       If None, reads from agent_config.yaml (default: 'claude')
+            config_path: Path to agent_config.yaml (default: 'src/agent_config.yaml')
+        """
+        import yaml
+        from pathlib import Path
+
+        # Read config if agent_type not specified
+        if agent_type is None:
+            config_file = Path(config_path or 'src/agent_config.yaml')
+            if config_file.exists():
+                try:
+                    with open(config_file, 'r') as f:
+                        config = yaml.safe_load(f)
+                        agent_type = config.get('meta_agent', {}).get('agent_type', 'claude')
+                except Exception as e:
+                    print(f"Warning: Failed to load config: {e}. Using default agent: claude")
+                    agent_type = 'claude'
+            else:
+                agent_type = 'claude'  # Fallback default
+
         # Lazy import to avoid circular dependency
-        from src.agents import ClaudeCLIAgent
-        self.cli_agent = ClaudeCLIAgent()
+        from src.agents import ClaudeCLIAgent, CodexExecAgent, GeminiAgent
+
+        agent_map = {
+            'claude': ClaudeCLIAgent,
+            'codex': CodexExecAgent,
+            'gemini': GeminiAgent
+        }
+
+        if agent_type not in agent_map:
+            raise ValueError(
+                f"Invalid agent_type: '{agent_type}'. "
+                f"Must be one of: {list(agent_map.keys())}"
+            )
+
+        self.agent_type = agent_type
+        self.cli_agent = agent_map[agent_type]()
+        print(f"[Meta-Agent] Using {agent_type.upper()} CLI for task decomposition")
 
     async def decompose_task(
         self,

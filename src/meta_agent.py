@@ -396,7 +396,7 @@ class MetaAgentCLI:
     def __init__(self):
         """Initialize Meta-Agent with Claude CLI"""
         # Lazy import to avoid circular dependency
-        from agents import ClaudeCLIAgent
+        from src.agents import ClaudeCLIAgent
         self.cli_agent = ClaudeCLIAgent()
 
     async def decompose_task(

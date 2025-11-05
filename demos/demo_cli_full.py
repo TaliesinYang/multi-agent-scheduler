@@ -89,7 +89,7 @@ async def run_cli_demo(workspace_path: str):
     print()
 
     # Validate workspace path before starting
-    from workspace_manager import WorkspaceManager
+    from src.workspace_manager import WorkspaceManager
     workspace_mgr = WorkspaceManager()
     is_valid, error = workspace_mgr.validate_workspace(workspace_path)
     if not is_valid:

@@ -293,7 +293,7 @@ async def main():
 
             # Try to load configuration
             try:
-                from config import ANTHROPIC_API_KEY, OPENAI_API_KEY
+                from src.config import ANTHROPIC_API_KEY, OPENAI_API_KEY
             except ImportError:
                 print("\n❌ config.py not found, please create the configuration file first")
                 print("Or choose Mock mode for testing")

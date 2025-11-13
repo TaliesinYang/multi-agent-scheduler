@@ -6,7 +6,7 @@ Uses AI to automatically break down complex tasks into subtasks with dependencie
 
 import asyncio
 import json
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from anthropic import AsyncAnthropic
 from src.scheduler import Task
 
@@ -21,7 +21,10 @@ class MetaAgent:
         # Returns: [Design DB schema, Build API, Create frontend, Write tests]
     """
 
-    def __init__(self, api_key: str, model: str = "claude-sonnet-4-5-20250929"):
+    client: AsyncAnthropic
+    model: str
+
+    def __init__(self, api_key: str, model: str = "claude-sonnet-4-5-20250929") -> None:
         """
         Initialize Meta-Agent with Claude API
 
@@ -169,30 +172,87 @@ Example of CORRECT output format (start immediately with '['):
             # Parse JSON (adapter has already unwrapped CLI formats and removed markdown)
             task_data = json.loads(text)
 
+            # Validate parsed data structure
+            if not isinstance(task_data, list):
+                raise ValueError(
+                    f"Expected JSON array, got {type(task_data).__name__}. "
+                    f"Response should start with '[' and contain a list of tasks."
+                )
+
+            if len(task_data) == 0:
+                raise ValueError("Task list is empty. Expected at least 1 task.")
+
             # Convert to Task objects
             tasks = []
-            for item in task_data:
+            for idx, item in enumerate(task_data):
+                if not isinstance(item, dict):
+                    print(f"⚠️  Warning: Task {idx} is not a dict, skipping: {item}")
+                    continue
+
+                # Validate required fields
+                if "prompt" not in item or not item["prompt"]:
+                    print(f"⚠️  Warning: Task {idx} missing 'prompt' field, skipping")
+                    continue
+
                 # Store estimated_minutes in metadata if provided
                 metadata = {}
                 if "estimated_minutes" in item:
-                    metadata["estimated_minutes"] = item["estimated_minutes"]
+                    try:
+                        metadata["estimated_minutes"] = int(item["estimated_minutes"])
+                    except (ValueError, TypeError):
+                        print(f"⚠️  Warning: Invalid estimated_minutes for task {idx}")
+
+                # Validate depends_on is a list
+                depends_on = item.get("depends_on", [])
+                if not isinstance(depends_on, list):
+                    print(f"⚠️  Warning: depends_on must be a list for task {idx}, got {type(depends_on)}")
+                    depends_on = []
 
                 task = Task(
                     id=item.get("id", f"task{len(tasks)+1}"),
                     prompt=item.get("prompt", ""),
                     task_type=item.get("task_type", "general"),
                     priority=item.get("priority", 3),
-                    depends_on=item.get("depends_on", []),
+                    depends_on=depends_on,
                     metadata=metadata if metadata else None
                 )
                 tasks.append(task)
+
+            if len(tasks) == 0:
+                raise ValueError("No valid tasks could be parsed from response")
 
             print(f"✓ Decomposed into {len(tasks)} subtasks")
             return tasks
 
         except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse JSON: {e}")
-            print(f"Response: {response_text[:200]}...")
+            print(f"❌ JSON parsing failed: {e.msg}")
+            print(f"   Error at line {e.lineno}, column {e.colno}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
+
+            # Fallback: Create a simple task list from text
+            return self._fallback_parsing(response_text)
+
+        except ValueError as e:
+            print(f"❌ Data validation failed: {e}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
+
+            # Fallback: Create a simple task list from text
+            return self._fallback_parsing(response_text)
+
+        except KeyError as e:
+            print(f"❌ Missing required field: {e}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
+
+            # Fallback: Create a simple task list from text
+            return self._fallback_parsing(response_text)
+
+        except Exception as e:
+            print(f"❌ Unexpected error during task parsing: {type(e).__name__}: {e}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
 
             # Fallback: Create a simple task list from text
             return self._fallback_parsing(response_text)
@@ -236,7 +296,7 @@ Example of CORRECT output format (start immediately with '['):
         print(f"[WARN] Used fallback parser: {len(tasks)} tasks extracted")
         return tasks
 
-    async def analyze_complexity(self, user_input: str) -> Dict:
+    async def analyze_complexity(self, user_input: str) -> Dict[str, Any]:
         """
         Analyze task complexity to decide if decomposition is needed
 
@@ -296,7 +356,7 @@ Only return the JSON object."""
                 "reasoning": f"Analysis failed: {e}"
             }
 
-    def print_task_tree(self, tasks: List[Task]):
+    def print_task_tree(self, tasks: List[Task]) -> None:
         """
         Print task list with dependencies in a tree structure
 
@@ -385,7 +445,14 @@ class MetaAgentCLI:
         tasks = await meta.decompose_task("Build a web app")
     """
 
-    def __init__(self, agent_type: Optional[str] = None, config_path: Optional[str] = None):
+    agent_type: str
+    cli_agent: Any  # BaseAgent type
+
+    def __init__(
+        self,
+        agent_type: Optional[str] = None,
+        config_path: Optional[str] = None
+    ) -> None:
         """
         Initialize Meta-Agent with configurable CLI agent
 
@@ -587,30 +654,87 @@ Example of CORRECT output format (start immediately with '['):
             # Parse JSON (adapter has already unwrapped CLI formats and removed markdown)
             task_data = json.loads(text)
 
+            # Validate parsed data structure
+            if not isinstance(task_data, list):
+                raise ValueError(
+                    f"Expected JSON array, got {type(task_data).__name__}. "
+                    f"Response should start with '[' and contain a list of tasks."
+                )
+
+            if len(task_data) == 0:
+                raise ValueError("Task list is empty. Expected at least 1 task.")
+
             # Convert to Task objects
             tasks = []
-            for item in task_data:
+            for idx, item in enumerate(task_data):
+                if not isinstance(item, dict):
+                    print(f"⚠️  Warning: Task {idx} is not a dict, skipping: {item}")
+                    continue
+
+                # Validate required fields
+                if "prompt" not in item or not item["prompt"]:
+                    print(f"⚠️  Warning: Task {idx} missing 'prompt' field, skipping")
+                    continue
+
                 # Store estimated_minutes in metadata if provided
                 metadata = {}
                 if "estimated_minutes" in item:
-                    metadata["estimated_minutes"] = item["estimated_minutes"]
+                    try:
+                        metadata["estimated_minutes"] = int(item["estimated_minutes"])
+                    except (ValueError, TypeError):
+                        print(f"⚠️  Warning: Invalid estimated_minutes for task {idx}")
+
+                # Validate depends_on is a list
+                depends_on = item.get("depends_on", [])
+                if not isinstance(depends_on, list):
+                    print(f"⚠️  Warning: depends_on must be a list for task {idx}, got {type(depends_on)}")
+                    depends_on = []
 
                 task = Task(
                     id=item.get("id", f"task{len(tasks)+1}"),
                     prompt=item.get("prompt", ""),
                     task_type=item.get("task_type", "general"),
                     priority=item.get("priority", 3),
-                    depends_on=item.get("depends_on", []),
+                    depends_on=depends_on,
                     metadata=metadata if metadata else None
                 )
                 tasks.append(task)
+
+            if len(tasks) == 0:
+                raise ValueError("No valid tasks could be parsed from response")
 
             print(f"✓ Decomposed into {len(tasks)} subtasks")
             return tasks
 
         except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse JSON: {e}")
-            print(f"Response: {response_text[:200]}...")
+            print(f"❌ JSON parsing failed: {e.msg}")
+            print(f"   Error at line {e.lineno}, column {e.colno}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
+
+            # Fallback: Create a simple task list from text
+            return self._fallback_parsing(response_text)
+
+        except ValueError as e:
+            print(f"❌ Data validation failed: {e}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
+
+            # Fallback: Create a simple task list from text
+            return self._fallback_parsing(response_text)
+
+        except KeyError as e:
+            print(f"❌ Missing required field: {e}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
+
+            # Fallback: Create a simple task list from text
+            return self._fallback_parsing(response_text)
+
+        except Exception as e:
+            print(f"❌ Unexpected error during task parsing: {type(e).__name__}: {e}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
 
             # Fallback: Create a simple task list from text
             return self._fallback_parsing(response_text)
@@ -672,7 +796,7 @@ Example of CORRECT output format (start immediately with '['):
             )
         ]
 
-    def print_task_tree(self, tasks: List[Task]):
+    def print_task_tree(self, tasks: List[Task]) -> None:
         """
         Print task dependency tree
 

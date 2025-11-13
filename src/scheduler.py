@@ -5,9 +5,15 @@ Core scheduler implementing parallel vs serial intelligent scheduling decisions
 
 import asyncio
 import time
-from typing import List, Dict, Optional
-from dataclasses import dataclass
+from typing import List, Dict, Optional, Set, Any, TYPE_CHECKING
+from dataclasses import dataclass, field
 from enum import Enum
+
+if TYPE_CHECKING:
+    from src.agents import BaseAgent
+    from src.logger import ExecutionLogger
+    from src.config import AgentConfig
+    from src.agent_selector import SmartAgentSelector
 
 
 class ExecutionMode(Enum):
@@ -25,9 +31,9 @@ class Task:
     task_type: str = "general"  # general, coding, simple, analysis
     depends_on: Optional[List[str]] = None  # List of dependent task IDs
     priority: int = 0  # Priority (higher number = higher priority)
-    metadata: Optional[Dict] = None
+    metadata: Optional[Dict[str, Any]] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.depends_on is None:
             self.depends_on = []
         if self.metadata is None:
@@ -40,14 +46,26 @@ class ExecutionResult:
     mode: ExecutionMode
     total_time: float
     task_count: int
-    results: List[Dict]
+    results: List[Dict[str, Any]]
     performance_gain: Optional[float] = None  # Performance gain percentage compared to serial
 
 
 class MultiAgentScheduler:
     """Multi-Agent Intelligent Scheduler"""
 
-    def __init__(self, agents: Dict[str, 'BaseAgent'], logger=None, config_path: Optional[str] = None):
+    agents: Dict[str, 'BaseAgent']
+    execution_history: List[ExecutionResult]
+    logger: Optional['ExecutionLogger']
+    config: 'AgentConfig'
+    agent_selector: 'SmartAgentSelector'
+    agent_selection_strategy: Dict[str, str]
+
+    def __init__(
+        self,
+        agents: Dict[str, 'BaseAgent'],
+        logger: Optional['ExecutionLogger'] = None,
+        config_path: Optional[str] = None
+    ) -> None:
         """
         Args:
             agents: Agent dictionary, key is agent type, value is agent instance
@@ -133,15 +151,15 @@ class MultiAgentScheduler:
 
             return selected_agent
 
-    def build_dependency_graph(self, tasks: List[Task]) -> Dict:
+    def build_dependency_graph(self, tasks: List[Task]) -> Dict[str, List[str]]:
         """
         Build task dependency graph (DAG)
 
         Returns:
             Dependency graph dictionary
         """
-        graph = {task.id: [] for task in tasks}
-        task_map = {task.id: task for task in tasks}
+        graph: Dict[str, List[str]] = {task.id: [] for task in tasks}
+        task_map: Dict[str, Task] = {task.id: task for task in tasks}
 
         for task in tasks:
             for dep_id in task.depends_on:
@@ -185,7 +203,12 @@ class MultiAgentScheduler:
 
         return batches
 
-    async def execute_task(self, task: Task, agent_name: str, batch: int = 0) -> Dict:
+    async def execute_task(
+        self,
+        task: Task,
+        agent_name: str,
+        batch: int = 0
+    ) -> Dict[str, Any]:
         """
         Execute a single task
 
@@ -200,7 +223,7 @@ class MultiAgentScheduler:
         agent = self.agents[agent_name]
 
         # Get selection rationale if available
-        rationale = None
+        rationale: Optional[Dict[str, Any]] = None
         if hasattr(self, 'agent_selector') and self.config.should_log_rationale():
             rationale = self.agent_selector.get_last_selection_rationale()
 
@@ -374,7 +397,7 @@ class MultiAgentScheduler:
 
         return result
 
-    async def compare_performance(self, tasks: List[Task]) -> Dict:
+    async def compare_performance(self, tasks: List[Task]) -> Dict[str, Any]:
         """
         Compare performance between parallel vs serial execution
 
@@ -411,7 +434,7 @@ class MultiAgentScheduler:
 
         return comparison
 
-    def print_summary(self, result: ExecutionResult):
+    def print_summary(self, result: ExecutionResult) -> None:
         """Print execution summary"""
         print("\n" + "=" * 60)
         print(f"[OK] Execution Complete!")
@@ -441,7 +464,11 @@ class MultiAgentScheduler:
         if result.performance_gain:
             print(f"\n⚡ Performance gain: {result.performance_gain:.1f}%")
 
-    def print_detailed_results(self, result: ExecutionResult, max_length: int = 150):
+    def print_detailed_results(
+        self,
+        result: ExecutionResult,
+        max_length: int = 150
+    ) -> None:
         """Print detailed results"""
         print("\n" + "-" * 60)
         print("📝 Detailed Task Results")
@@ -464,13 +491,13 @@ class MultiAgentScheduler:
 
             print(f"    Result: {result_text}")
 
-    def _analyze_workspace(self, workspace_path: str) -> Dict:
+    def _analyze_workspace(self, workspace_path: str) -> Dict[str, Any]:
         """
         Analyze workspace state for agent context
-        
+
         Args:
             workspace_path: Path to workspace directory
-            
+
         Returns:
             Dictionary with workspace statistics:
             - total_files: Total file count
@@ -480,7 +507,7 @@ class MultiAgentScheduler:
         """
         from pathlib import Path
         import os
-        
+
         workspace = Path(workspace_path)
         
         if not workspace.exists():

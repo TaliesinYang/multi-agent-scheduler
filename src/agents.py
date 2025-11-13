@@ -7,7 +7,7 @@ import asyncio
 import subprocess
 import time
 import shlex
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 from src.cli_adapters import CLIOutputAdapter
@@ -16,7 +16,19 @@ from src.cli_adapters import CLIOutputAdapter
 class BaseAgent:
     """Base AI Agent Class"""
 
-    def __init__(self, name: str, max_concurrent: int = 10, workspace: str = None):
+    name: str
+    semaphore: asyncio.Semaphore
+    call_count: int
+    total_latency: float
+    total_tokens: int
+    workspace: Optional[str]
+
+    def __init__(
+        self,
+        name: str,
+        max_concurrent: int = 10,
+        workspace: Optional[str] = None
+    ) -> None:
         self.name = name
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.call_count = 0
@@ -24,7 +36,7 @@ class BaseAgent:
         self.total_tokens = 0
         self.workspace = workspace  # Working directory for file operations
 
-    async def call(self, prompt: str) -> Dict:
+    async def call(self, prompt: str) -> Dict[str, Any]:
         """
         Call AI model and return result
 
@@ -36,7 +48,7 @@ class BaseAgent:
         """
         raise NotImplementedError("Subclass must implement call() method")
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get statistics"""
         avg_latency = self.total_latency / self.call_count if self.call_count > 0 else 0
         return {
@@ -66,7 +78,16 @@ class RobustCLIAgent(BaseAgent):
                 )
     """
 
-    def __init__(self, name: str, cli_command: str, max_concurrent: int = 10, workspace: str = None):
+    cli_command: str
+    default_timeout: float
+
+    def __init__(
+        self,
+        name: str,
+        cli_command: str,
+        max_concurrent: int = 10,
+        workspace: Optional[str] = None
+    ) -> None:
         """
         Initialize robust CLI agent
 
@@ -85,7 +106,7 @@ class RobustCLIAgent(BaseAgent):
         prompt: str,
         timeout: Optional[float] = None,
         output_format: str = "json"
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Call CLI with robust error handling and timeout
 
@@ -195,12 +216,21 @@ class RobustCLIAgent(BaseAgent):
 class ClaudeAgent(BaseAgent):
     """Claude API Agent"""
 
-    def __init__(self, api_key: str, max_concurrent: int = 20, model: str = "claude-sonnet-4-5-20250929", workspace: str = None):
+    client: AsyncAnthropic
+    model: str
+
+    def __init__(
+        self,
+        api_key: str,
+        max_concurrent: int = 20,
+        model: str = "claude-sonnet-4-5-20250929",
+        workspace: Optional[str] = None
+    ) -> None:
         super().__init__("Claude", max_concurrent, workspace)
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = model
 
-    async def call(self, prompt: str, max_tokens: int = 1024) -> Dict:
+    async def call(self, prompt: str, max_tokens: int = 1024) -> Dict[str, Any]:
         """Call Claude API"""
         async with self.semaphore:
             start_time = time.time()
@@ -252,7 +282,11 @@ class ClaudeCLIAgent(RobustCLIAgent):
         result = await agent.call("Explain quantum computing")
     """
 
-    def __init__(self, max_concurrent: int = 10, workspace: str = None):
+    def __init__(
+        self,
+        max_concurrent: int = 10,
+        workspace: Optional[str] = None
+    ) -> None:
         """
         Initialize Claude CLI agent
 
@@ -308,7 +342,13 @@ class CodexExecAgent(BaseAgent):
         result = await agent.call("Write a Python function to sort a list")
     """
 
-    def __init__(self, max_concurrent: int = 10, workspace: str = None):
+    default_timeout: float
+
+    def __init__(
+        self,
+        max_concurrent: int = 10,
+        workspace: Optional[str] = None
+    ) -> None:
         """
         Initialize Codex Exec agent
 
@@ -323,7 +363,7 @@ class CodexExecAgent(BaseAgent):
         self,
         prompt: str,
         timeout: Optional[float] = None
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Call Codex CLI using 'codex exec' command
 
@@ -454,12 +494,21 @@ class CodexExecAgent(BaseAgent):
 class OpenAIAgent(BaseAgent):
     """OpenAI API Agent"""
 
-    def __init__(self, api_key: str, max_concurrent: int = 20, model: str = "gpt-4-turbo", workspace: str = None):
+    client: AsyncOpenAI
+    model: str
+
+    def __init__(
+        self,
+        api_key: str,
+        max_concurrent: int = 20,
+        model: str = "gpt-4-turbo",
+        workspace: Optional[str] = None
+    ) -> None:
         super().__init__("OpenAI", max_concurrent, workspace)
         self.client = AsyncOpenAI(api_key=api_key)
         self.model = model
 
-    async def call(self, prompt: str, max_tokens: int = 1024) -> Dict:
+    async def call(self, prompt: str, max_tokens: int = 1024) -> Dict[str, Any]:
         """Call OpenAI API"""
         async with self.semaphore:
             start_time = time.time()
@@ -516,7 +565,11 @@ class GeminiAgent(RobustCLIAgent):
         result = await agent.call("Explain quantum computing")
     """
 
-    def __init__(self, max_concurrent: int = 10, workspace: str = None):
+    def __init__(
+        self,
+        max_concurrent: int = 10,
+        workspace: Optional[str] = None
+    ) -> None:
         """
         Initialize Gemini CLI agent
 
@@ -535,11 +588,19 @@ class GeminiAgent(RobustCLIAgent):
 class MockAgent(BaseAgent):
     """Mock Agent (for testing, no real API required)"""
 
-    def __init__(self, name: str = "Mock", delay: float = 1.0, max_concurrent: int = 10, workspace: str = None):
+    delay: float
+
+    def __init__(
+        self,
+        name: str = "Mock",
+        delay: float = 1.0,
+        max_concurrent: int = 10,
+        workspace: Optional[str] = None
+    ) -> None:
         super().__init__(name, max_concurrent, workspace)
         self.delay = delay
 
-    async def call(self, prompt: str) -> Dict:
+    async def call(self, prompt: str) -> Dict[str, Any]:
         """Simulate API call"""
         async with self.semaphore:
             start_time = time.time()

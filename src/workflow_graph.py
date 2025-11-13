@@ -24,6 +24,7 @@ class NodeType(Enum):
     PARALLEL = "parallel"
     LOOP = "loop"
     SUBGRAPH = "subgraph"
+    HUMAN_INPUT = "human_input"
 
 
 class EdgeType(Enum):
@@ -688,3 +689,198 @@ def create_simple_workflow(
     graph.add_edge(WorkflowEdge(prev, "end"))
 
     return graph
+
+
+# Human-in-the-Loop Utility Functions
+
+def create_approval_node(
+    node_id: str,
+    prompt: str,
+    hitl_manager: Optional[Any] = None,
+    context: Optional[Dict[str, Any]] = None,
+    timeout: Optional[float] = None
+) -> WorkflowNode:
+    """
+    Create approval node for human-in-the-loop workflows
+
+    Args:
+        node_id: Node identifier
+        prompt: Approval prompt
+        hitl_manager: HumanInputManager instance
+        context: Additional context
+        timeout: Approval timeout
+
+    Returns:
+        WorkflowNode configured for approval
+
+    Example:
+        >>> from src.human_in_the_loop import HumanInputManager
+        >>> hitl = HumanInputManager()
+        >>> approval_node = create_approval_node(
+        ...     "approve_deployment",
+        ...     "Approve deployment to production?",
+        ...     hitl_manager=hitl,
+        ...     context={'version': '1.2.3'}
+        ... )
+        >>> graph.add_node(approval_node)
+    """
+    async def approval_handler(state: WorkflowState) -> Dict[str, Any]:
+        if hitl_manager is None:
+            # Import here to avoid circular dependency
+            from src.human_in_the_loop import HumanInputManager
+            manager = HumanInputManager()
+        else:
+            manager = hitl_manager
+
+        # Merge context with state
+        full_context = {**(context or {}), **state.data}
+
+        # Request approval
+        from src.human_in_the_loop import InputType
+        approved = await manager.request_input(
+            InputType.APPROVAL,
+            prompt,
+            context=full_context,
+            timeout=timeout
+        )
+
+        return {
+            f"{node_id}_approved": approved,
+            f"{node_id}_response": approved
+        }
+
+    return WorkflowNode(
+        node_id=node_id,
+        node_type=NodeType.HUMAN_INPUT,
+        handler=approval_handler,
+        config={
+            'input_type': 'approval',
+            'prompt': prompt,
+            'timeout': timeout
+        }
+    )
+
+
+def create_feedback_node(
+    node_id: str,
+    prompt: str,
+    hitl_manager: Optional[Any] = None,
+    context: Optional[Dict[str, Any]] = None,
+    timeout: Optional[float] = None
+) -> WorkflowNode:
+    """
+    Create feedback node for collecting human feedback
+
+    Args:
+        node_id: Node identifier
+        prompt: Feedback prompt
+        hitl_manager: HumanInputManager instance
+        context: Additional context
+        timeout: Feedback timeout
+
+    Returns:
+        WorkflowNode configured for feedback
+
+    Example:
+        >>> feedback_node = create_feedback_node(
+        ...     "review_output",
+        ...     "Please review the generated code",
+        ...     hitl_manager=hitl
+        ... )
+    """
+    async def feedback_handler(state: WorkflowState) -> Dict[str, Any]:
+        if hitl_manager is None:
+            from src.human_in_the_loop import HumanInputManager
+            manager = HumanInputManager()
+        else:
+            manager = hitl_manager
+
+        full_context = {**(context or {}), **state.data}
+
+        from src.human_in_the_loop import InputType
+        feedback = await manager.request_input(
+            InputType.FEEDBACK,
+            prompt,
+            context=full_context,
+            timeout=timeout
+        )
+
+        return {
+            f"{node_id}_feedback": feedback,
+            f"{node_id}_response": feedback
+        }
+
+    return WorkflowNode(
+        node_id=node_id,
+        node_type=NodeType.HUMAN_INPUT,
+        handler=feedback_handler,
+        config={
+            'input_type': 'feedback',
+            'prompt': prompt,
+            'timeout': timeout
+        }
+    )
+
+
+def create_review_node(
+    node_id: str,
+    prompt: str,
+    hitl_manager: Optional[Any] = None,
+    context: Optional[Dict[str, Any]] = None,
+    timeout: Optional[float] = None
+) -> WorkflowNode:
+    """
+    Create review node for detailed human review
+
+    Args:
+        node_id: Node identifier
+        prompt: Review prompt
+        hitl_manager: HumanInputManager instance
+        context: Additional context
+        timeout: Review timeout
+
+    Returns:
+        WorkflowNode configured for review
+
+    Example:
+        >>> review_node = create_review_node(
+        ...     "code_review",
+        ...     "Review the implementation",
+        ...     hitl_manager=hitl
+        ... )
+    """
+    async def review_handler(state: WorkflowState) -> Dict[str, Any]:
+        if hitl_manager is None:
+            from src.human_in_the_loop import HumanInputManager
+            manager = HumanInputManager()
+        else:
+            manager = hitl_manager
+
+        full_context = {**(context or {}), **state.data}
+
+        from src.human_in_the_loop import InputType
+        review = await manager.request_input(
+            InputType.REVIEW,
+            prompt,
+            context=full_context,
+            timeout=timeout
+        )
+
+        return {
+            f"{node_id}_review": review,
+            f"{node_id}_approved": review.get('approved', False),
+            f"{node_id}_rating": review.get('rating', 3),
+            f"{node_id}_comments": review.get('comments', ''),
+            f"{node_id}_response": review
+        }
+
+    return WorkflowNode(
+        node_id=node_id,
+        node_type=NodeType.HUMAN_INPUT,
+        handler=review_handler,
+        config={
+            'input_type': 'review',
+            'prompt': prompt,
+            'timeout': timeout
+        }
+    )

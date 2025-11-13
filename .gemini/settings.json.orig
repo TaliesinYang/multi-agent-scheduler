@@ -1,0 +1,19 @@
+{
+  "model": "gemini-2.0-flash-exp",
+  "temperature": 0.7,
+  "max_tokens": 8192,
+  "response_format": {
+    "type": "text"
+  },
+  "language": "en",
+  "workspace": "./workspaces",
+  "enable_context_memory": false,
+  "enable_code_execution": false,
+  "safety_settings": {
+    "harassment": "block_none",
+    "hate_speech": "block_none",
+    "sexually_explicit": "block_none",
+    "dangerous_content": "block_none"
+  },
+  "system_instructions": "You are assisting with an academic operating systems course project. Always respond in English with technical precision. When generating JSON for task decomposition, return ONLY the JSON structure without explanatory text."
+}

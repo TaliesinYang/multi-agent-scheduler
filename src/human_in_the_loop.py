@@ -44,7 +44,7 @@ class HumanInput:
     prompt: str
 
     # Request details
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: Optional[Dict[str, Any]] = None
     options: Optional[List[str]] = None
     default_value: Optional[Any] = None
     timeout: Optional[float] = None
@@ -57,6 +57,11 @@ class HumanInput:
     # Metadata
     requested_at: float = field(default_factory=time.time)
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def timestamp(self) -> float:
+        """Alias for requested_at"""
+        return self.requested_at
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
@@ -317,7 +322,7 @@ class HumanInputManager:
 
     def __init__(
         self,
-        handlers: Optional[List[InputHandler]] = None,
+        handlers: Optional[Union[InputHandler, List[InputHandler]]] = None,
         default_timeout: float = 300.0,  # 5 minutes
         auto_approve: bool = False
     ):
@@ -325,11 +330,22 @@ class HumanInputManager:
         Initialize HITL manager
 
         Args:
-            handlers: List of input handlers (defaults to console)
+            handlers: Single handler or list of input handlers (defaults to console)
             default_timeout: Default timeout for input requests
             auto_approve: Auto-approve all requests (for testing)
         """
-        self.handlers = handlers or [ConsoleInputHandler()]
+        # Support both single handler and list of handlers
+        if handlers is None:
+            self.handlers = [ConsoleInputHandler()]
+            self.input_handler = self.handlers[0]
+        elif isinstance(handlers, list):
+            self.handlers = handlers
+            self.input_handler = handlers[0] if handlers else None
+        else:
+            # Single handler
+            self.handlers = [handlers]
+            self.input_handler = handlers
+
         self.default_timeout = default_timeout
         self.auto_approve = auto_approve
 
@@ -515,11 +531,26 @@ class HumanInputManager:
             default_value={'approved': False, 'rating': 3, 'comments': ''}
         )
 
+    async def request_validation(
+        self,
+        prompt: str,
+        context: Optional[Dict[str, Any]] = None,
+        timeout: Optional[float] = None
+    ) -> bool:
+        """Request validation (convenience method)"""
+        return await self.request_input(
+            InputType.VALIDATION,
+            prompt,
+            context=context,
+            timeout=timeout,
+            default_value=False
+        )
+
     def get_input_history(
         self,
         input_type: Optional[InputType] = None,
         status: Optional[InputStatus] = None
-    ) -> List[HumanInput]:
+    ) -> List[Dict[str, Any]]:
         """
         Get input history with filters
 
@@ -528,7 +559,7 @@ class HumanInputManager:
             status: Filter by status
 
         Returns:
-            List of matching input requests
+            List of matching input requests as dictionaries
         """
         results = self.input_history
 
@@ -538,7 +569,11 @@ class HumanInputManager:
         if status:
             results = [inp for inp in results if inp.status == status]
 
-        return results
+        return [inp.to_dict() for inp in results]
+
+    def clear_history(self):
+        """Clear input history"""
+        self.input_history.clear()
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get statistics about input requests"""

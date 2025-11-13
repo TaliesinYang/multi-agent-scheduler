@@ -41,6 +41,7 @@ class Span:
     start_time: float
     end_time: Optional[float] = None
     status: SpanStatus = SpanStatus.UNSET
+    status_message: Optional[str] = None
     attributes: Dict[str, Any] = field(default_factory=dict)
     events: List[Dict[str, Any]] = field(default_factory=list)
     duration_ms: float = 0.0
@@ -60,6 +61,7 @@ class Span:
     def set_status(self, status: SpanStatus, description: Optional[str] = None):
         """Set span status"""
         self.status = status
+        self.status_message = description
         if description:
             self.attributes["status_description"] = description
 
@@ -67,6 +69,12 @@ class Span:
         """End span"""
         self.end_time = time.time()
         self.duration_ms = (self.end_time - self.start_time) * 1000
+
+    def duration(self) -> Optional[float]:
+        """Get span duration in seconds"""
+        if self.end_time is None:
+            return None
+        return self.end_time - self.start_time
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
@@ -93,6 +101,8 @@ class Tracer:
         self.current_trace_id: Optional[str] = None
         self.current_span: Optional[Span] = None
         self.spans: List[Span] = []
+        # Alias for compatibility
+        self.completed_spans: List[Span] = self.spans
 
     def start_trace(self) -> str:
         """Start new trace"""
@@ -129,6 +139,25 @@ class Tracer:
         """End span"""
         span.end()
         self.spans.append(span)
+        # Clear current span if it's the one being ended
+        if self.current_span == span:
+            self.current_span = None
+
+    def get_current_span(self) -> Optional[Span]:
+        """Get currently active span"""
+        return self.current_span
+
+    def get_completed_spans(self) -> List[Span]:
+        """Get all completed spans"""
+        return self.spans.copy()
+
+    def clear_spans(self):
+        """Clear all completed spans"""
+        self.spans.clear()
+
+    def get_trace_by_id(self, trace_id: str) -> List[Span]:
+        """Get all spans for a specific trace ID"""
+        return [s for s in self.spans if s.trace_id == trace_id]
 
     @asynccontextmanager
     async def trace(
@@ -178,11 +207,35 @@ class Tracer:
 class TracingExporter:
     """Export traces to various backends"""
 
-    def __init__(self, tracer: Tracer):
+    def __init__(self, tracer: Optional[Tracer] = None):
         self.tracer = tracer
+        self.export_count = 0
+        self.exported_spans: List[Span] = []
+
+    async def export(self, spans: List[Span]):
+        """Export spans to backend"""
+        self.exported_spans.extend(spans)
+        self.export_count += 1
+
+    async def export_to_json(self, spans: List[Span], filepath: str):
+        """Export spans to JSON file"""
+        import json
+
+        spans_data = [span.to_dict() for span in spans]
+        with open(filepath, 'w') as f:
+            json.dump(spans_data, f, indent=2)
+
+    def get_export_stats(self) -> Dict[str, int]:
+        """Get export statistics"""
+        return {
+            "total_exports": self.export_count,
+            "total_spans_exported": len(self.exported_spans)
+        }
 
     def export_to_console(self, trace_id: str):
         """Print trace to console"""
+        if not self.tracer:
+            raise ValueError("Tracer not set")
         tree = self.tracer.get_trace_tree(trace_id)
         self._print_tree(tree, indent=0)
 
@@ -198,29 +251,29 @@ class TracingExporter:
         for child in node.get("children", []):
             self._print_tree(child, indent + 1)
 
-    def export_to_json(self, trace_id: str) -> str:
+    def export_trace_to_json(self, trace_id: str) -> str:
         """Export trace as JSON"""
         import json
+        if not self.tracer:
+            raise ValueError("Tracer not set")
         tree = self.tracer.get_trace_tree(trace_id)
         return json.dumps(tree, indent=2)
 
 
-# Global tracer instance
-_global_tracer: Optional[Tracer] = None
+# Global tracer instances
+_global_tracers: Dict[str, Tracer] = {}
 
 
 def get_tracer(service_name: str = "multi-agent-scheduler") -> Tracer:
-    """Get global tracer instance"""
-    global _global_tracer
-    if _global_tracer is None:
-        _global_tracer = Tracer(service_name)
-    return _global_tracer
+    """Get global tracer instance for a service"""
+    if service_name not in _global_tracers:
+        _global_tracers[service_name] = Tracer(service_name)
+    return _global_tracers[service_name]
 
 
-def set_global_tracer(tracer: Tracer):
-    """Set custom global tracer"""
-    global _global_tracer
-    _global_tracer = tracer
+def set_global_tracer(service_name: str, tracer: Tracer):
+    """Set custom global tracer for a service"""
+    _global_tracers[service_name] = tracer
 
 
 # Integration helpers

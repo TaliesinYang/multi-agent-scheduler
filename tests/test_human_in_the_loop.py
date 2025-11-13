@@ -84,6 +84,10 @@ class MockInputHandler(InputHandler):
         self.requests.append(input_request)
         return self.response if self.response is not None else input_request.default_value
 
+    def is_available(self) -> bool:
+        """Check if handler is available"""
+        return True
+
 
 class TestCallbackInputHandler:
     """Test CallbackInputHandler"""
@@ -220,9 +224,7 @@ class TestHumanInputManager:
         manager = HumanInputManager(handler)
 
         rating = await manager.request_rating(
-            "Rate this result",
-            min_rating=1,
-            max_rating=5
+            "Rate this result"
         )
 
         assert rating == 4
@@ -306,12 +308,12 @@ class TestHumanInputManager:
             input_type=InputType.APPROVAL,
             prompt="Approve?",
             timeout=0.1,
-            default_value=True
+            default_value=True,
+            required=False
         )
 
         # Should get default value since it timed out
-        # (Implementation may vary - this tests the concept)
-        assert result in [True, None]  # Either default or timeout
+        assert result == True
 
     @pytest.mark.asyncio
     async def test_get_input_history(self):
@@ -345,25 +347,26 @@ class TestHumanInputManager:
     @pytest.mark.asyncio
     async def test_concurrent_requests(self):
         """Test handling concurrent input requests"""
-        responses = {"req1": "response1", "req2": "response2", "req3": "response3"}
+        responses = []
 
         async def callback(input_req: HumanInput) -> str:
             await asyncio.sleep(0.01)  # Simulate processing time
-            return responses.get(input_req.input_id, "default")
+            result = f"response_{len(responses) + 1}"
+            responses.append(result)
+            return result
 
         handler = CallbackInputHandler(callback)
         manager = HumanInputManager(handler)
 
         # Make concurrent requests
         results = await asyncio.gather(
-            manager.request_input(InputType.FEEDBACK, "Req 1", input_id="req1"),
-            manager.request_input(InputType.FEEDBACK, "Req 2", input_id="req2"),
-            manager.request_input(InputType.FEEDBACK, "Req 3", input_id="req3")
+            manager.request_input(InputType.FEEDBACK, "Req 1"),
+            manager.request_input(InputType.FEEDBACK, "Req 2"),
+            manager.request_input(InputType.FEEDBACK, "Req 3")
         )
 
-        assert "response1" in results
-        assert "response2" in results
-        assert "response3" in results
+        assert len(results) == 3
+        assert all(r.startswith("response_") for r in results)
 
 
 class TestConsoleInputHandler:

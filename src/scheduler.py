@@ -5,7 +5,7 @@ Core scheduler implementing parallel vs serial intelligent scheduling decisions
 
 import asyncio
 import time
-from typing import List, Dict, Optional, Set, Any, TYPE_CHECKING, Union
+from typing import List, Dict, Optional, Set, Any, TYPE_CHECKING, Union, AsyncIterator
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -339,6 +339,124 @@ class MultiAgentScheduler:
             )
 
         return result
+
+    async def execute_task_stream(
+        self,
+        task: Task,
+        agent_name: str,
+        batch: int = 0
+    ) -> AsyncIterator[Dict[str, Any]]:
+        """
+        Execute a single task with streaming response
+
+        Args:
+            task: Task object
+            agent_name: Agent name to use
+            batch: Batch number (for logging)
+
+        Yields:
+            Stream chunks as dictionaries:
+            - {'task_id': str, 'chunk': str, 'done': False} - intermediate chunks
+            - {'task_id': str, 'result': str, 'done': True, 'success': bool} - final result
+
+        Example:
+            >>> async for chunk_data in scheduler.execute_task_stream(task, 'claude'):
+            ...     if not chunk_data['done']:
+            ...         print(chunk_data['chunk'], end='', flush=True)
+            ...     else:
+            ...         print(f"\\nCompleted: {chunk_data['success']}")
+        """
+        agent = self.agents[agent_name]
+
+        # Get selection rationale if available
+        rationale: Optional[Dict[str, Any]] = None
+        if hasattr(self, 'agent_selector') and self.config.should_log_rationale():
+            rationale = self.agent_selector.get_last_selection_rationale()
+
+        # Emit task start event
+        if self.event_bus:
+            await self.event_bus.emit('task.stream_started', {
+                'task_id': task.id,
+                'agent': agent_name,
+                'batch': batch
+            }, source='scheduler')
+
+        # Increment metrics
+        if self.metrics:
+            self.metrics.inc('tasks.stream_started')
+            self.metrics.inc(f'tasks.{task.task_type}.stream_started')
+
+        # Log task start
+        if self.logger:
+            self.logger.log_task_start(task.id, task.prompt, agent.name, batch, rationale)
+        else:
+            print(f"  🌊 [{agent_name}] Streaming task: {task.id}")
+
+        # Stream execution
+        start_time = time.time()
+        full_text = ""
+        success = True
+        error_msg = None
+
+        try:
+            async for chunk in agent.call_stream(task.prompt):
+                full_text += chunk
+                yield {
+                    'task_id': task.id,
+                    'chunk': chunk,
+                    'done': False
+                }
+
+            # Final result
+            end_time = time.time()
+            latency = end_time - start_time
+
+        except Exception as e:
+            success = False
+            error_msg = str(e)
+            end_time = time.time()
+            latency = end_time - start_time
+            print(f"❌ Stream error for task {task.id}: {error_msg}")
+
+        # Track success/failure metrics
+        if self.metrics:
+            if success:
+                self.metrics.inc('tasks.stream_completed')
+                self.metrics.inc(f'tasks.{task.task_type}.stream_completed')
+            else:
+                self.metrics.inc('tasks.stream_failed')
+                self.metrics.inc(f'tasks.{task.task_type}.stream_failed')
+
+        # Emit task complete event
+        if self.event_bus:
+            await self.event_bus.emit('task.stream_completed', {
+                'task_id': task.id,
+                'agent': agent_name,
+                'success': success,
+                'latency': latency
+            }, source='scheduler')
+
+        # Log task complete
+        if self.logger:
+            self.logger.log_task_complete(
+                task.id,
+                success,
+                latency,
+                error_msg,
+                full_text if success else None
+            )
+
+        # Yield final result
+        yield {
+            'task_id': task.id,
+            'task_type': task.task_type,
+            'agent_selected': agent_name,
+            'result': full_text,
+            'latency': latency,
+            'done': True,
+            'success': success,
+            'error': error_msg
+        }
 
     async def execute_parallel(self, tasks: List[Task]) -> ExecutionResult:
         """

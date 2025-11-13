@@ -7,7 +7,7 @@ import asyncio
 import subprocess
 import time
 import shlex
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, AsyncIterator
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 from src.cli_adapters import CLIOutputAdapter
@@ -47,6 +47,23 @@ class BaseAgent:
             Dict containing: agent name, result text, latency, token count
         """
         raise NotImplementedError("Subclass must implement call() method")
+
+    async def call_stream(self, prompt: str, **kwargs) -> AsyncIterator[str]:
+        """
+        Call AI model with streaming response
+
+        Args:
+            prompt: Input prompt
+            **kwargs: Additional arguments
+
+        Yields:
+            String chunks as they arrive
+
+        Example:
+            >>> async for chunk in agent.call_stream("Explain Python"):
+            ...     print(chunk, end='', flush=True)
+        """
+        raise NotImplementedError("Subclass must implement call_stream() method")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics"""
@@ -297,6 +314,60 @@ class ClaudeAgent(BaseAgent):
                     "error": str(e),
                     "error_type": error_type
                 }
+
+    async def call_stream(self, prompt: str, max_tokens: int = 1024) -> AsyncIterator[str]:
+        """
+        Call Claude API with streaming response
+
+        Args:
+            prompt: Input prompt
+            max_tokens: Maximum tokens to generate
+
+        Yields:
+            Text chunks as they arrive from the API
+
+        Example:
+            >>> async for chunk in agent.call_stream("Explain async"):
+            ...     print(chunk, end='', flush=True)
+        """
+        async with self.semaphore:
+            start_time = time.time()
+
+            try:
+                async with self.client.messages.stream(
+                    model=self.model,
+                    max_tokens=max_tokens,
+                    messages=[{"role": "user", "content": prompt}]
+                ) as stream:
+                    async for text in stream.text_stream:
+                        yield text
+
+                # Update statistics after streaming completes
+                message = await stream.get_final_message()
+                end_time = time.time()
+                latency = end_time - start_time
+
+                self.call_count += 1
+                self.total_latency += latency
+                self.total_tokens += message.usage.total_tokens
+
+            except asyncio.TimeoutError:
+                end_time = time.time()
+                print(f"⏱️  Claude API stream timeout after {end_time - start_time:.1f}s")
+                yield f"\n[ERROR: Stream timeout after {end_time - start_time:.1f}s]"
+
+            except Exception as e:
+                end_time = time.time()
+                error_type = type(e).__name__
+
+                if "rate_limit" in str(e).lower():
+                    print(f"🚦 Claude API stream rate limit hit")
+                elif "authentication" in str(e).lower():
+                    print(f"🔑 Claude API stream authentication failed")
+                else:
+                    print(f"❌ Claude API stream error: {error_type}: {str(e)[:100]}")
+
+                yield f"\n[ERROR: {error_type}: {str(e)[:100]}]"
 
 
 class ClaudeCLIAgent(RobustCLIAgent):
@@ -607,6 +678,67 @@ class OpenAIAgent(BaseAgent):
                     "error": str(e),
                     "error_type": error_type
                 }
+
+    async def call_stream(self, prompt: str, max_tokens: int = 1024) -> AsyncIterator[str]:
+        """
+        Call OpenAI API with streaming response
+
+        Args:
+            prompt: Input prompt
+            max_tokens: Maximum tokens to generate
+
+        Yields:
+            Text chunks as they arrive from the API
+
+        Example:
+            >>> async for chunk in agent.call_stream("Explain Python"):
+            ...     print(chunk, end='', flush=True)
+        """
+        async with self.semaphore:
+            start_time = time.time()
+            total_tokens = 0
+
+            try:
+                stream = await self.client.chat.completions.create(
+                    model=self.model,
+                    max_tokens=max_tokens,
+                    messages=[{"role": "user", "content": prompt}],
+                    stream=True
+                )
+
+                async for chunk in stream:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        yield chunk.choices[0].delta.content
+
+                # Update statistics after streaming completes
+                end_time = time.time()
+                latency = end_time - start_time
+
+                self.call_count += 1
+                self.total_latency += latency
+                # Note: OpenAI streaming doesn't provide token count in real-time
+                # We'll estimate or leave it at 0
+                self.total_tokens += total_tokens
+
+            except asyncio.TimeoutError:
+                end_time = time.time()
+                print(f"⏱️  OpenAI API stream timeout after {end_time - start_time:.1f}s")
+                yield f"\n[ERROR: Stream timeout after {end_time - start_time:.1f}s]"
+
+            except Exception as e:
+                end_time = time.time()
+                error_type = type(e).__name__
+
+                if "rate_limit" in str(e).lower() or "429" in str(e):
+                    print(f"🚦 OpenAI API stream rate limit hit")
+                elif "invalid_api_key" in str(e).lower():
+                    print(f"🔑 OpenAI API stream authentication failed")
+                elif "insufficient_quota" in str(e).lower():
+                    print(f"💰 OpenAI API stream quota exceeded")
+                else:
+                    print(f"❌ OpenAI API stream error: {error_type}: {str(e)[:100]}")
+
+                yield f"\n[ERROR: {error_type}: {str(e)[:100]}]"
 
 
 class GeminiAgent(RobustCLIAgent):

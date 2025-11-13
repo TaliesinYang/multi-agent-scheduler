@@ -217,6 +217,12 @@ def get_tracer(service_name: str = "multi-agent-scheduler") -> Tracer:
     return _global_tracer
 
 
+def set_global_tracer(tracer: Tracer):
+    """Set custom global tracer"""
+    global _global_tracer
+    _global_tracer = tracer
+
+
 # Integration helpers
 async def trace_agent_call(agent_name: str, prompt: str, call_func):
     """Trace an agent call"""

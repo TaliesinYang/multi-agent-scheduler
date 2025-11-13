@@ -455,10 +455,14 @@ class WorkflowGraph:
             if checkpoint_manager:
                 from src.checkpoint import CheckpointStatus
 
-            while current not in self.end_nodes:
+            while True:
                 # Execute current node
                 node = self.nodes[current]
                 state = await node.execute(state)
+
+                # Check if reached end node
+                if current in self.end_nodes:
+                    break
 
                 # Check for errors
                 if state.get('error'):

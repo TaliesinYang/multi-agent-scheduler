@@ -124,7 +124,7 @@ class TestSchedulerStreaming:
             pass
 
         # Check metrics were recorded
-        stats = metrics.get_all_stats()
+        stats = metrics.get_stats()
         assert 'tasks.stream_started' in stats['counters']
         assert stats['counters']['tasks.stream_started'] == 1
         assert 'tasks.stream_completed' in stats['counters']

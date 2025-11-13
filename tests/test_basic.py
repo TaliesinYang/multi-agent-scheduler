@@ -4,10 +4,12 @@ Verify that core system functionality works properly
 """
 
 import asyncio
+import pytest
 from src.agents import MockAgent
 from src.scheduler import MultiAgentScheduler, Task, ExecutionMode
 
 
+@pytest.mark.asyncio
 async def test_mock_agents():
     """Test Mock Agents"""
     print("=" * 60)
@@ -28,6 +30,7 @@ async def test_mock_agents():
     print(f"  - Latency: {result['latency']:.2f} seconds")
 
 
+@pytest.mark.asyncio
 async def test_parallel_execution():
     """Test Parallel Execution"""
     print("\n" + "=" * 60)
@@ -59,6 +62,7 @@ async def test_parallel_execution():
     print(f"  - 3 tasks completed in: {result.total_time:.2f} seconds (expected ~1 second)")
 
 
+@pytest.mark.asyncio
 async def test_serial_execution():
     """Test Serial Execution"""
     print("\n" + "=" * 60)
@@ -88,6 +92,7 @@ async def test_serial_execution():
     print(f"  - 3 tasks completed in: {result.total_time:.2f} seconds (expected ~1.5 seconds)")
 
 
+@pytest.mark.asyncio
 async def test_dependency_scheduling():
     """Test Dependency-based Scheduling"""
     print("\n" + "=" * 60)
@@ -117,6 +122,7 @@ async def test_dependency_scheduling():
     print(f"  - 4 tasks completed in batches")
 
 
+@pytest.mark.asyncio
 async def test_performance_comparison():
     """Test Performance Comparison"""
     print("\n" + "=" * 60)
@@ -146,6 +152,7 @@ async def test_performance_comparison():
     print(f"  - Performance gain: {comparison['performance_gain_percent']:.1f}%")
 
 
+@pytest.mark.asyncio
 async def test_agent_selection():
     """Test Intelligent Agent Selection"""
     print("\n" + "=" * 60)

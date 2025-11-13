@@ -411,7 +411,9 @@ class WorkflowGraph:
         self,
         initial_state: Optional[WorkflowState] = None,
         start_node: Optional[str] = None,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
+        checkpoint_manager: Optional[Any] = None,
+        execution_id: Optional[str] = None
     ) -> WorkflowState:
         """
         Execute workflow graph
@@ -420,6 +422,8 @@ class WorkflowGraph:
             initial_state: Initial workflow state
             start_node: Override start node
             timeout: Execution timeout in seconds
+            checkpoint_manager: CheckpointManager for saving state
+            execution_id: Unique execution ID for checkpointing
 
         Returns:
             Final workflow state
@@ -446,6 +450,10 @@ class WorkflowGraph:
         async def _execute():
             nonlocal current, state
 
+            # Import here to avoid circular dependency
+            if checkpoint_manager:
+                from src.checkpoint import CheckpointStatus
+
             while current not in self.end_nodes:
                 # Execute current node
                 node = self.nodes[current]
@@ -455,6 +463,26 @@ class WorkflowGraph:
                 if state.get('error'):
                     print(f"❌ Error in node '{current}': {state.get('error')}")
                     break
+
+                # Save checkpoint after each node if enabled
+                if checkpoint_manager and execution_id:
+                    # Check if should checkpoint based on interval
+                    if await checkpoint_manager.should_checkpoint(execution_id):
+                        # Find pending nodes (remaining nodes in graph)
+                        pending = [
+                            nid for nid in self.nodes.keys()
+                            if nid not in state.history and nid not in self.end_nodes
+                        ]
+
+                        await checkpoint_manager.create_checkpoint(
+                            execution_id=execution_id,
+                            status=CheckpointStatus.RUNNING,
+                            current_node=current,
+                            completed_nodes=state.history.copy(),
+                            pending_nodes=pending,
+                            workflow_state=state.data.copy(),
+                            metadata={'graph_id': self.graph_id}
+                        )
 
                 # Find next nodes
                 next_nodes = self._find_next_nodes(current, state)

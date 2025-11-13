@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from src.agent_selector import SmartAgentSelector
     from src.dependency_injection import SchedulerDependencies
     from src.workflow_graph import WorkflowGraph, WorkflowState
+    from src.checkpoint import CheckpointManager
 
 
 class ExecutionMode(Enum):
@@ -67,7 +68,9 @@ class MultiAgentScheduler:
         dependencies: Optional[Union['SchedulerDependencies', Dict[str, 'BaseAgent']]] = None,
         agents: Optional[Dict[str, 'BaseAgent']] = None,
         logger: Optional['ExecutionLogger'] = None,
-        config_path: Optional[str] = None
+        config_path: Optional[str] = None,
+        checkpoint_manager: Optional['CheckpointManager'] = None,
+        enable_checkpoints: bool = False
     ) -> None:
         """
         Initialize scheduler with dependency injection support
@@ -147,6 +150,14 @@ class MultiAgentScheduler:
         self.metrics = self._deps.get_metrics() if self._deps else None
         self.event_bus = self._deps.get_event_bus() if self._deps else None
         self.cache = self._deps.get_cache() if self._deps else None
+
+        # Checkpoint support
+        self.checkpoint_manager = checkpoint_manager
+        self.enable_checkpoints = enable_checkpoints
+        if self.enable_checkpoints and not self.checkpoint_manager:
+            # Auto-create checkpoint manager if enabled
+            from src.checkpoint import CheckpointManager
+            self.checkpoint_manager = CheckpointManager()
 
     def analyze_dependencies(self, tasks: List[Task]) -> bool:
         """
@@ -704,7 +715,9 @@ class MultiAgentScheduler:
         self,
         workflow: 'WorkflowGraph',
         initial_state: Optional['WorkflowState'] = None,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
+        execution_id: Optional[str] = None,
+        enable_checkpoints: Optional[bool] = None
     ) -> 'WorkflowState':
         """
         Execute a workflow graph with scheduler integration
@@ -713,6 +726,8 @@ class MultiAgentScheduler:
             workflow: WorkflowGraph to execute
             initial_state: Initial workflow state
             timeout: Execution timeout in seconds
+            execution_id: Unique execution ID for checkpointing
+            enable_checkpoints: Override global checkpoint setting
 
         Returns:
             Final workflow state
@@ -726,11 +741,21 @@ class MultiAgentScheduler:
         """
         # Import here to avoid circular dependency
         from src.workflow_graph import WorkflowState
+        from src.checkpoint import CheckpointStatus
+
+        # Determine if checkpointing is enabled
+        checkpointing = enable_checkpoints if enable_checkpoints is not None else self.enable_checkpoints
+
+        # Generate execution ID if checkpointing
+        if checkpointing and not execution_id:
+            import uuid
+            execution_id = f"workflow_{workflow.graph_id}_{uuid.uuid4().hex[:8]}"
 
         # Emit workflow start event
         if self.event_bus:
             await self.event_bus.emit('workflow.started', {
                 'graph_id': workflow.graph_id,
+                'execution_id': execution_id,
                 'node_count': len(workflow.nodes),
                 'edge_count': len(workflow.edges)
             }, source='scheduler')
@@ -747,16 +772,39 @@ class MultiAgentScheduler:
                 print(f"    - {issue}")
 
         print(f"\n🔀 [WORKFLOW] Executing graph '{workflow.graph_id}'")
+        if execution_id:
+            print(f"   Execution ID: {execution_id}")
         print(f"   Nodes: {len(workflow.nodes)}, Edges: {len(workflow.edges)}")
+        if checkpointing:
+            print(f"   Checkpointing: enabled")
+
+        # Create initial checkpoint if enabled
+        if checkpointing and self.checkpoint_manager:
+            await self.checkpoint_manager.create_checkpoint(
+                execution_id=execution_id,
+                status=CheckpointStatus.RUNNING,
+                workflow_state=initial_state.data if initial_state else {},
+                metadata={'graph_id': workflow.graph_id}
+            )
 
         # Execute workflow
         start_time = time.time()
         try:
             if self.metrics:
                 with self.metrics.time('workflow.execution'):
-                    final_state = await workflow.execute(initial_state, timeout=timeout)
+                    final_state = await workflow.execute(
+                        initial_state,
+                        timeout=timeout,
+                        checkpoint_manager=self.checkpoint_manager if checkpointing else None,
+                        execution_id=execution_id
+                    )
             else:
-                final_state = await workflow.execute(initial_state, timeout=timeout)
+                final_state = await workflow.execute(
+                    initial_state,
+                    timeout=timeout,
+                    checkpoint_manager=self.checkpoint_manager if checkpointing else None,
+                    execution_id=execution_id
+                )
 
             success = not final_state.get('error')
 
@@ -771,6 +819,26 @@ class MultiAgentScheduler:
             final_state.metadata['end_time'] = time.time()
             final_state.metadata['duration'] = time.time() - start_time
 
+            # Save failure checkpoint
+            if checkpointing and self.checkpoint_manager:
+                await self.checkpoint_manager.create_checkpoint(
+                    execution_id=execution_id,
+                    status=CheckpointStatus.FAILED,
+                    workflow_state=final_state.data,
+                    error=str(e),
+                    metadata={'graph_id': workflow.graph_id}
+                )
+
+        # Save completion checkpoint
+        if checkpointing and self.checkpoint_manager and success:
+            await self.checkpoint_manager.create_checkpoint(
+                execution_id=execution_id,
+                status=CheckpointStatus.COMPLETED,
+                workflow_state=final_state.data,
+                completed_nodes=final_state.history,
+                metadata={'graph_id': workflow.graph_id}
+            )
+
         # Track metrics
         if self.metrics:
             if success:
@@ -782,6 +850,7 @@ class MultiAgentScheduler:
         if self.event_bus:
             await self.event_bus.emit('workflow.completed', {
                 'graph_id': workflow.graph_id,
+                'execution_id': execution_id,
                 'success': success,
                 'duration': final_state.metadata.get('duration', 0),
                 'node_count': len(final_state.history)
@@ -794,6 +863,62 @@ class MultiAgentScheduler:
         print(f"   Execution path: {path}")
 
         return final_state
+
+    async def resume_workflow(
+        self,
+        execution_id: str,
+        workflow: 'WorkflowGraph',
+        timeout: Optional[float] = None
+    ) -> 'WorkflowState':
+        """
+        Resume workflow execution from last checkpoint
+
+        Args:
+            execution_id: Execution ID to resume
+            workflow: WorkflowGraph (must match original)
+            timeout: Execution timeout
+
+        Returns:
+            Final workflow state
+
+        Raises:
+            ValueError: If cannot resume (no checkpoint or wrong status)
+        """
+        from src.workflow_graph import WorkflowState
+        from src.checkpoint import CheckpointStatus
+
+        if not self.checkpoint_manager:
+            raise ValueError("Checkpoint manager not configured")
+
+        # Load latest checkpoint
+        checkpoint = await self.checkpoint_manager.load_latest_checkpoint(execution_id)
+
+        if not checkpoint:
+            raise ValueError(f"No checkpoint found for execution {execution_id}")
+
+        if checkpoint.status not in [CheckpointStatus.RUNNING, CheckpointStatus.PAUSED]:
+            raise ValueError(f"Cannot resume from status: {checkpoint.status.value}")
+
+        print(f"\n🔄 [RESUME] Resuming workflow '{workflow.graph_id}'")
+        print(f"   Execution ID: {execution_id}")
+        print(f"   From checkpoint: {checkpoint.checkpoint_id}")
+        print(f"   Completed nodes: {len(checkpoint.completed_nodes)}")
+
+        # Restore state
+        initial_state = WorkflowState(
+            data=checkpoint.workflow_state,
+            history=checkpoint.completed_nodes,
+            metadata=checkpoint.metadata
+        )
+
+        # Resume execution
+        return await self.execute_workflow(
+            workflow,
+            initial_state=initial_state,
+            timeout=timeout,
+            execution_id=execution_id,
+            enable_checkpoints=True
+        )
 
     def create_task_workflow(
         self,

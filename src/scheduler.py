@@ -5,7 +5,7 @@ Core scheduler implementing parallel vs serial intelligent scheduling decisions
 
 import asyncio
 import time
-from typing import List, Dict, Optional, Set, Any, TYPE_CHECKING
+from typing import List, Dict, Optional, Set, Any, TYPE_CHECKING, Union
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from src.logger import ExecutionLogger
     from src.config import AgentConfig
     from src.agent_selector import SmartAgentSelector
+    from src.dependency_injection import SchedulerDependencies
 
 
 class ExecutionMode(Enum):
@@ -62,28 +63,75 @@ class MultiAgentScheduler:
 
     def __init__(
         self,
-        agents: Dict[str, 'BaseAgent'],
+        dependencies: Optional[Union['SchedulerDependencies', Dict[str, 'BaseAgent']]] = None,
+        agents: Optional[Dict[str, 'BaseAgent']] = None,
         logger: Optional['ExecutionLogger'] = None,
         config_path: Optional[str] = None
     ) -> None:
         """
+        Initialize scheduler with dependency injection support
+
         Args:
-            agents: Agent dictionary, key is agent type, value is agent instance
-                   Example: {'claude': ClaudeAgent(...), 'openai': OpenAIAgent(...)}
-            logger: ExecutionLogger instance for logging (optional)
-            config_path: Path to agent configuration YAML file (optional)
-                        If None, uses default configuration
+            dependencies: SchedulerDependencies object with all dependencies
+                         OR legacy Dict of agents (for backward compatibility)
+            agents: Agent dictionary (legacy, use dependencies instead)
+            logger: ExecutionLogger instance (legacy, use dependencies instead)
+            config_path: Path to agent configuration YAML (legacy)
+
+        Example (new way - dependency injection):
+            >>> from src.dependency_injection import SchedulerDependencies
+            >>> deps = SchedulerDependencies(
+            ...     agents={'claude': ClaudeAgent()},
+            ...     logger=logger,
+            ...     config=config
+            ... )
+            >>> scheduler = MultiAgentScheduler(deps)
+
+        Example (legacy way - still supported):
+            >>> scheduler = MultiAgentScheduler(
+            ...     agents={'claude': ClaudeAgent()},
+            ...     logger=logger
+            ... )
         """
-        self.agents = agents
         self.execution_history = []
-        self.logger = logger
 
-        # Load agent configuration
-        from src.config import AgentConfig
-        from src.agent_selector import SmartAgentSelector
+        # Handle dependency injection
+        if dependencies is not None:
+            # Check if it's a SchedulerDependencies object
+            if hasattr(dependencies, 'agents') and hasattr(dependencies, 'get_config'):
+                # New way: SchedulerDependencies object
+                self._deps = dependencies
+                self.agents = dependencies.agents
+                self.logger = dependencies.get_logger()
+                self.config = dependencies.get_config()
+                self.agent_selector = dependencies.get_agent_selector()
+            else:
+                # Legacy way: Dict of agents passed as first argument
+                self.agents = dependencies  # type: ignore
+                self.logger = logger
+                self._deps = None
 
-        self.config = AgentConfig.load(config_path)
-        self.agent_selector = SmartAgentSelector(self.config)
+                # Load configuration the old way
+                from src.config import AgentConfig
+                from src.agent_selector import SmartAgentSelector
+
+                self.config = AgentConfig.load(config_path)
+                self.agent_selector = SmartAgentSelector(self.config)
+        else:
+            # Legacy way: separate parameters
+            if agents is None:
+                raise ValueError("Either 'dependencies' or 'agents' must be provided")
+
+            self.agents = agents
+            self.logger = logger
+            self._deps = None
+
+            # Load configuration the old way
+            from src.config import AgentConfig
+            from src.agent_selector import SmartAgentSelector
+
+            self.config = AgentConfig.load(config_path)
+            self.agent_selector = SmartAgentSelector(self.config)
 
         # Legacy support: keep old strategy as fallback
         self.agent_selection_strategy = {
@@ -93,6 +141,11 @@ class MultiAgentScheduler:
             'general': 'claude',
             'creative': 'openai'
         }
+
+        # Optional services from DI container
+        self.metrics = self._deps.get_metrics() if self._deps else None
+        self.event_bus = self._deps.get_event_bus() if self._deps else None
+        self.cache = self._deps.get_cache() if self._deps else None
 
     def analyze_dependencies(self, tasks: List[Task]) -> bool:
         """
@@ -210,7 +263,7 @@ class MultiAgentScheduler:
         batch: int = 0
     ) -> Dict[str, Any]:
         """
-        Execute a single task
+        Execute a single task with metrics and event support
 
         Args:
             task: Task object
@@ -227,16 +280,53 @@ class MultiAgentScheduler:
         if hasattr(self, 'agent_selector') and self.config.should_log_rationale():
             rationale = self.agent_selector.get_last_selection_rationale()
 
+        # Emit task start event
+        if self.event_bus:
+            await self.event_bus.emit('task.started', {
+                'task_id': task.id,
+                'agent': agent_name,
+                'batch': batch
+            }, source='scheduler')
+
+        # Increment metrics
+        if self.metrics:
+            self.metrics.inc('tasks.started')
+            self.metrics.inc(f'tasks.{task.task_type}.started')
+
         # Log task start
         if self.logger:
             self.logger.log_task_start(task.id, task.prompt, agent.name, batch, rationale)
         else:
             print(f"  ⚡ [{agent_name}] Executing task: {task.id}")
 
-        result = await agent.call(task.prompt)
+        # Execute with timing
+        if self.metrics:
+            with self.metrics.time('task.execution'):
+                result = await agent.call(task.prompt)
+        else:
+            result = await agent.call(task.prompt)
+
         result['task_id'] = task.id
         result['task_type'] = task.task_type
         result['agent_selected'] = agent_name
+
+        # Track success/failure metrics
+        if self.metrics:
+            if result.get('success', False):
+                self.metrics.inc('tasks.completed')
+                self.metrics.inc(f'tasks.{task.task_type}.completed')
+            else:
+                self.metrics.inc('tasks.failed')
+                self.metrics.inc(f'tasks.{task.task_type}.failed')
+
+        # Emit task complete event
+        if self.event_bus:
+            await self.event_bus.emit('task.completed', {
+                'task_id': task.id,
+                'agent': agent_name,
+                'success': result.get('success', False),
+                'latency': result.get('latency', 0)
+            }, source='scheduler')
 
         # Log task complete with full result
         if self.logger:

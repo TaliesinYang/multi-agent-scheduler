@@ -245,6 +245,271 @@ class TestConfigManager:
         assert value == 'test-value'
 
 
+class TestComplexityAnalyzer:
+    """Test complexity analyzer"""
+
+    def test_basic_analysis(self):
+        """Test basic complexity analysis"""
+        from src.complexity_analyzer import ComplexityAnalyzer
+
+        analyzer = ComplexityAnalyzer()
+
+        # Simple task
+        score = analyzer.analyze("Fix typo in README")
+        assert score.level == 'trivial' or score.level == 'low'
+        assert score.score < 20
+
+        # Complex task
+        score = analyzer.analyze(
+            "Build a full-stack e-commerce platform with React, Node.js, "
+            "PostgreSQL, authentication, and payment integration"
+        )
+        assert score.level in ['high', 'very_high']
+        assert score.score > 50
+
+    def test_keyword_detection(self):
+        """Test keyword-based scoring"""
+        from src.complexity_analyzer import ComplexityAnalyzer
+
+        analyzer = ComplexityAnalyzer()
+
+        # Task with high-complexity keywords
+        score1 = analyzer.analyze("Build microservices with authentication and database")
+        score2 = analyzer.analyze("Update README file")
+
+        assert score1.score > score2.score
+
+    def test_task_range(self):
+        """Test recommended task range"""
+        from src.complexity_analyzer import ComplexityAnalyzer
+
+        analyzer = ComplexityAnalyzer()
+
+        # Simple task
+        min_tasks, max_tasks = analyzer.get_task_range("Fix bug")
+        assert min_tasks <= max_tasks
+        assert min_tasks < 10
+
+        # Complex task
+        min_tasks, max_tasks = analyzer.get_task_range(
+            "Build enterprise application with microservices and CI/CD"
+        )
+        assert min_tasks > 15
+
+
+class TestDependencyInjection:
+    """Test dependency injection system"""
+
+    def test_service_registration(self):
+        """Test service registration and retrieval"""
+        from src.dependency_injection import ServiceContainer
+
+        container = ServiceContainer()
+
+        class MockService:
+            def do_something(self):
+                return "done"
+
+        service = MockService()
+        container.register('test_service', service)
+
+        retrieved = container.get('test_service')
+        assert retrieved is service
+        assert retrieved.do_something() == "done"
+
+    def test_factory_pattern(self):
+        """Test factory registration"""
+        from src.dependency_injection import ServiceContainer
+
+        container = ServiceContainer()
+        call_count = 0
+
+        def factory():
+            nonlocal call_count
+            call_count += 1
+            return f"instance_{call_count}"
+
+        container.register_singleton('service', factory)
+
+        # Get twice - should be same instance
+        instance1 = container.get('service')
+        instance2 = container.get('service')
+
+        assert instance1 == instance2
+        assert call_count == 1
+
+    def test_scheduler_dependencies(self):
+        """Test SchedulerDependencies bundle"""
+        from src.dependency_injection import SchedulerDependencies
+
+        class MockAgent:
+            def __init__(self, name):
+                self.name = name
+
+        agents = {'claude': MockAgent('claude')}
+        deps = SchedulerDependencies(agents=agents)
+
+        assert deps.agents == agents
+        assert deps.get_logger() is None  # No logger provided
+        assert deps.get_config() is not None  # Should create default
+
+
+class TestPluginSystem:
+    """Test plugin system"""
+
+    def test_plugin_registration(self):
+        """Test plugin registration"""
+        from src.plugin_system import PluginManager, Plugin, PluginMetadata, PluginHook
+
+        manager = PluginManager()
+
+        class TestPlugin(Plugin):
+            def get_metadata(self):
+                return PluginMetadata(
+                    name="test_plugin",
+                    version="1.0.0",
+                    hooks=[PluginHook.BEFORE_TASK]
+                )
+
+            async def on_hook(self, hook, context):
+                return None
+
+        plugin = TestPlugin()
+        manager.register(plugin)
+
+        assert 'test_plugin' in manager.plugins
+        assert manager.enabled_plugins['test_plugin'] is True
+
+    @pytest.mark.asyncio
+    async def test_hook_execution(self):
+        """Test hook execution"""
+        from src.plugin_system import PluginManager, Plugin, PluginMetadata, PluginHook
+
+        manager = PluginManager()
+        hook_called = []
+
+        class TestPlugin(Plugin):
+            def get_metadata(self):
+                return PluginMetadata(
+                    name="test_plugin",
+                    version="1.0.0",
+                    hooks=[PluginHook.BEFORE_TASK]
+                )
+
+            async def on_hook(self, hook, context):
+                hook_called.append(hook)
+                return {'modified': True}
+
+        plugin = TestPlugin()
+        manager.register(plugin)
+
+        context = {'task_id': 'task1'}
+        result = await manager.execute_hook(PluginHook.BEFORE_TASK, context)
+
+        assert len(hook_called) == 1
+        assert result['modified'] is True
+
+    def test_plugin_enable_disable(self):
+        """Test plugin enable/disable"""
+        from src.plugin_system import PluginManager, Plugin, PluginMetadata
+
+        manager = PluginManager()
+
+        class TestPlugin(Plugin):
+            def get_metadata(self):
+                return PluginMetadata(name="test_plugin", version="1.0.0")
+
+            async def on_hook(self, hook, context):
+                return None
+
+        plugin = TestPlugin()
+        manager.register(plugin)
+
+        assert manager.enabled_plugins['test_plugin'] is True
+
+        manager.disable_plugin('test_plugin')
+        assert manager.enabled_plugins['test_plugin'] is False
+
+        manager.enable_plugin('test_plugin')
+        assert manager.enabled_plugins['test_plugin'] is True
+
+
+class TestWorkspaceLock:
+    """Test workspace file locking and sandboxing"""
+
+    @pytest.mark.asyncio
+    async def test_file_lock(self):
+        """Test basic file locking"""
+        from src.workspace_lock import FileLock
+
+        lock = FileLock()
+
+        # Lock should work
+        async with lock.acquire('/tmp/test_file.txt'):
+            assert lock.is_locked('/tmp/test_file.txt')
+
+        # Should be unlocked after context
+        assert not lock.is_locked('/tmp/test_file.txt')
+
+    @pytest.mark.asyncio
+    async def test_sandboxed_workspace(self):
+        """Test sandboxed workspace manager"""
+        from src.workspace_lock import SandboxedWorkspaceManager
+        import tempfile
+        import shutil
+
+        # Use temporary directory
+        temp_dir = tempfile.mkdtemp()
+
+        try:
+            manager = SandboxedWorkspaceManager(base_dir=temp_dir)
+
+            # Create workspace
+            workspace = await manager.create_workspace('test_project')
+            assert workspace.exists()
+
+            # Write file
+            test_file = workspace / 'test.txt'
+            await manager.write_file(test_file, 'Hello, world!')
+
+            # Read file
+            content = await manager.read_file(test_file)
+            assert content == 'Hello, world!'
+
+            # Get workspace info
+            info = manager.get_workspace_info(workspace)
+            assert info['file_count'] == 1
+            assert info['total_size'] > 0
+
+        finally:
+            # Cleanup
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    @pytest.mark.asyncio
+    async def test_path_validation(self):
+        """Test path validation and security"""
+        from src.workspace_lock import SandboxedWorkspaceManager
+        from pathlib import Path
+        import tempfile
+
+        temp_dir = tempfile.mkdtemp()
+
+        try:
+            manager = SandboxedWorkspaceManager(base_dir=temp_dir)
+
+            # Should reject path outside sandbox
+            with pytest.raises(PermissionError):
+                await manager.write_file(Path('/etc/passwd'), 'bad content')
+
+            # Should reject path traversal
+            with pytest.raises(PermissionError):
+                await manager.write_file(Path(temp_dir) / '..' / '..' / 'escape.txt', 'content')
+
+        finally:
+            import shutil
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
 # Run tests
 if __name__ == "__main__":
     pytest.main([__file__, '-v'])

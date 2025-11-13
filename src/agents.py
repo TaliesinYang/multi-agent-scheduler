@@ -258,15 +258,44 @@ class ClaudeAgent(BaseAgent):
                     "success": True
                 }
 
+            except asyncio.TimeoutError:
+                end_time = time.time()
+                print(f"⏱️  Claude API timeout after {end_time - start_time:.1f}s")
+                return {
+                    "agent": self.name,
+                    "result": "API request timed out",
+                    "latency": end_time - start_time,
+                    "tokens": 0,
+                    "success": False,
+                    "error": "Timeout",
+                    "error_type": "timeout"
+                }
+
             except Exception as e:
                 end_time = time.time()
+                error_type = type(e).__name__
+
+                # Log specific error types
+                if "rate_limit" in str(e).lower():
+                    print(f"🚦 Claude API rate limit hit")
+                    error_type = "rate_limit"
+                elif "authentication" in str(e).lower() or "api_key" in str(e).lower():
+                    print(f"🔑 Claude API authentication failed")
+                    error_type = "auth_error"
+                elif "overloaded" in str(e).lower():
+                    print(f"⚠️  Claude API overloaded")
+                    error_type = "overloaded"
+                else:
+                    print(f"❌ Claude API error: {error_type}: {str(e)[:100]}")
+
                 return {
                     "agent": self.name,
                     "result": f"Error: {str(e)}",
                     "latency": end_time - start_time,
                     "tokens": 0,
                     "success": False,
-                    "error": str(e)
+                    "error": str(e),
+                    "error_type": error_type
                 }
 
 
@@ -536,15 +565,47 @@ class OpenAIAgent(BaseAgent):
                     "success": True
                 }
 
+            except asyncio.TimeoutError:
+                end_time = time.time()
+                print(f"⏱️  OpenAI API timeout after {end_time - start_time:.1f}s")
+                return {
+                    "agent": self.name,
+                    "result": "API request timed out",
+                    "latency": end_time - start_time,
+                    "tokens": 0,
+                    "success": False,
+                    "error": "Timeout",
+                    "error_type": "timeout"
+                }
+
             except Exception as e:
                 end_time = time.time()
+                error_type = type(e).__name__
+
+                # Log specific error types
+                if "rate_limit" in str(e).lower() or "429" in str(e):
+                    print(f"🚦 OpenAI API rate limit hit")
+                    error_type = "rate_limit"
+                elif "invalid_api_key" in str(e).lower() or "401" in str(e):
+                    print(f"🔑 OpenAI API authentication failed")
+                    error_type = "auth_error"
+                elif "insufficient_quota" in str(e).lower():
+                    print(f"💰 OpenAI API quota exceeded")
+                    error_type = "quota_exceeded"
+                elif "model_not_found" in str(e).lower() or "404" in str(e):
+                    print(f"🔍 OpenAI model not found: {self.model}")
+                    error_type = "model_not_found"
+                else:
+                    print(f"❌ OpenAI API error: {error_type}: {str(e)[:100]}")
+
                 return {
                     "agent": self.name,
                     "result": f"Error: {str(e)}",
                     "latency": end_time - start_time,
                     "tokens": 0,
                     "success": False,
-                    "error": str(e)
+                    "error": str(e),
+                    "error_type": error_type
                 }
 
 

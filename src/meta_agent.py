@@ -9,6 +9,7 @@ import json
 from typing import List, Dict, Optional, Any
 from anthropic import AsyncAnthropic
 from src.scheduler import Task
+from src.complexity_analyzer import get_analyzer, ComplexityScore
 
 
 class MetaAgent:
@@ -35,14 +36,21 @@ class MetaAgent:
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = model
 
-    async def decompose_task(self, user_input: str, min_tasks: int = 15, max_tasks: int = 20) -> List[Task]:
+    async def decompose_task(
+        self,
+        user_input: str,
+        min_tasks: Optional[int] = None,
+        max_tasks: Optional[int] = None,
+        use_dynamic_complexity: bool = True
+    ) -> List[Task]:
         """
-        Decompose user's complex task into structured subtasks
+        Decompose user's complex task into structured subtasks with dynamic complexity analysis
 
         Args:
             user_input: User's task description (e.g., "Build a website")
-            min_tasks: Minimum number of subtasks to generate (default: 15)
-            max_tasks: Maximum number of subtasks to generate (default: 20)
+            min_tasks: Minimum number of subtasks (None = auto-detect from complexity)
+            max_tasks: Maximum number of subtasks (None = auto-detect from complexity)
+            use_dynamic_complexity: Use complexity analyzer to determine task count
 
         Returns:
             List of Task objects with dependencies
@@ -56,6 +64,29 @@ class MetaAgent:
             task3: Add authentication
             task4: Write API tests
         """
+        # Dynamic complexity analysis
+        if use_dynamic_complexity and (min_tasks is None or max_tasks is None):
+            analyzer = get_analyzer()
+            complexity = analyzer.analyze(user_input)
+
+            detected_min, detected_max = analyzer.get_task_range(user_input)
+
+            # Use detected values if not explicitly provided
+            if min_tasks is None:
+                min_tasks = detected_min
+            if max_tasks is None:
+                max_tasks = detected_max
+
+            print(f"🔍 Complexity Analysis: {complexity.level.upper()} (score: {complexity.score}/100)")
+            print(f"📊 Recommended subtasks: {complexity.recommended_subtasks} (range: {detected_min}-{detected_max})")
+            print(f"💡 Reasoning: {complexity.reasoning}")
+        else:
+            # Fallback to defaults if dynamic analysis disabled
+            if min_tasks is None:
+                min_tasks = 15
+            if max_tasks is None:
+                max_tasks = 20
+
         prompt = self._build_decomposition_prompt(user_input, min_tasks, max_tasks)
 
         try:
@@ -500,21 +531,46 @@ class MetaAgentCLI:
     async def decompose_task(
         self,
         user_input: str,
-        min_tasks: int = 15,
-        max_tasks: int = 20
+        min_tasks: Optional[int] = None,
+        max_tasks: Optional[int] = None,
+        use_dynamic_complexity: bool = True
     ) -> List[Task]:
         """
-        Decompose user's complex task using Claude CLI
+        Decompose user's complex task using CLI with dynamic complexity analysis
 
         Args:
             user_input: User's task description
-            min_tasks: Minimum number of subtasks (default: 15)
-            max_tasks: Maximum number of subtasks (default: 20)
+            min_tasks: Minimum number of subtasks (None = auto-detect from complexity)
+            max_tasks: Maximum number of subtasks (None = auto-detect from complexity)
+            use_dynamic_complexity: Use complexity analyzer to determine task count
 
         Returns:
             List of Task objects with dependencies
         """
         print("[Meta-Agent] analyzing task via CLI...")
+
+        # Dynamic complexity analysis
+        if use_dynamic_complexity and (min_tasks is None or max_tasks is None):
+            analyzer = get_analyzer()
+            complexity = analyzer.analyze(user_input)
+
+            detected_min, detected_max = analyzer.get_task_range(user_input)
+
+            # Use detected values if not explicitly provided
+            if min_tasks is None:
+                min_tasks = detected_min
+            if max_tasks is None:
+                max_tasks = detected_max
+
+            print(f"🔍 Complexity Analysis: {complexity.level.upper()} (score: {complexity.score}/100)")
+            print(f"📊 Recommended subtasks: {complexity.recommended_subtasks} (range: {detected_min}-{detected_max})")
+            print(f"💡 Reasoning: {complexity.reasoning}")
+        else:
+            # Fallback to defaults if dynamic analysis disabled
+            if min_tasks is None:
+                min_tasks = 15
+            if max_tasks is None:
+                max_tasks = 20
 
         # Build decomposition prompt
         prompt = self._build_decomposition_prompt(user_input, min_tasks, max_tasks)

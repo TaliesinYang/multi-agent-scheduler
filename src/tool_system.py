@@ -121,13 +121,77 @@ class ToolRegistry:
 def create_calculator_tool() -> Tool:
     """Create calculator tool"""
     async def calculate(expression: str) -> float:
-        """Safely evaluate math expression"""
+        """Safely evaluate math expression using AST parsing"""
+        import ast
+        import operator
+        import math
+
         try:
-            # Simple safe evaluation (limited for security)
-            allowed_chars = set('0123456789+-*/(). ')
-            if not all(c in allowed_chars for c in expression):
-                raise ValueError("Invalid characters in expression")
-            return eval(expression)
+            # Parse expression into AST
+            node = ast.parse(expression, mode='eval')
+
+            # Allowed operations
+            allowed_ops = {
+                ast.Add: operator.add,
+                ast.Sub: operator.sub,
+                ast.Mult: operator.mul,
+                ast.Div: operator.truediv,
+                ast.Pow: operator.pow,
+                ast.USub: operator.neg,
+                ast.UAdd: operator.pos,
+                ast.Mod: operator.mod,
+                ast.FloorDiv: operator.floordiv
+            }
+
+            # Allowed functions
+            allowed_functions = {
+                'abs': abs,
+                'round': round,
+                'min': min,
+                'max': max,
+                'sum': sum,
+                'sqrt': math.sqrt,
+                'pow': pow,
+                'sin': math.sin,
+                'cos': math.cos,
+                'tan': math.tan,
+                'log': math.log,
+                'exp': math.exp
+            }
+
+            def eval_node(node):
+                """Recursively evaluate AST node"""
+                if isinstance(node, ast.Expression):
+                    return eval_node(node.body)
+                elif isinstance(node, ast.Constant):  # Numbers
+                    return node.value
+                elif isinstance(node, ast.BinOp):  # Binary operations
+                    if type(node.op) not in allowed_ops:
+                        raise ValueError(f"Operation {type(node.op).__name__} not allowed")
+                    left = eval_node(node.left)
+                    right = eval_node(node.right)
+                    return allowed_ops[type(node.op)](left, right)
+                elif isinstance(node, ast.UnaryOp):  # Unary operations
+                    if type(node.op) not in allowed_ops:
+                        raise ValueError(f"Operation {type(node.op).__name__} not allowed")
+                    operand = eval_node(node.operand)
+                    return allowed_ops[type(node.op)](operand)
+                elif isinstance(node, ast.Call):  # Function calls
+                    if not isinstance(node.func, ast.Name):
+                        raise ValueError("Only simple function calls allowed")
+                    func_name = node.func.id
+                    if func_name not in allowed_functions:
+                        raise ValueError(f"Function {func_name} not allowed")
+                    args = [eval_node(arg) for arg in node.args]
+                    return allowed_functions[func_name](*args)
+                else:
+                    raise ValueError(f"Node type {type(node).__name__} not allowed")
+
+            result = eval_node(node)
+            return float(result)
+
+        except SyntaxError as e:
+            raise ValueError(f"Invalid expression syntax: {e}")
         except Exception as e:
             raise ValueError(f"Calculation error: {e}")
 

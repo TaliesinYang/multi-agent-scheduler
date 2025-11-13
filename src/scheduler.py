@@ -5,7 +5,7 @@ Core scheduler implementing parallel vs serial intelligent scheduling decisions
 
 import asyncio
 import time
-from typing import List, Dict, Optional, Set, Any, TYPE_CHECKING, Union, AsyncIterator
+from typing import List, Dict, Optional, Set, Any, TYPE_CHECKING, Union, AsyncIterator, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from src.config import AgentConfig
     from src.agent_selector import SmartAgentSelector
     from src.dependency_injection import SchedulerDependencies
+    from src.workflow_graph import WorkflowGraph, WorkflowState
 
 
 class ExecutionMode(Enum):
@@ -699,6 +700,220 @@ class MultiAgentScheduler:
 
             print(f"    Result: {result_text}")
 
+    async def execute_workflow(
+        self,
+        workflow: 'WorkflowGraph',
+        initial_state: Optional['WorkflowState'] = None,
+        timeout: Optional[float] = None
+    ) -> 'WorkflowState':
+        """
+        Execute a workflow graph with scheduler integration
+
+        Args:
+            workflow: WorkflowGraph to execute
+            initial_state: Initial workflow state
+            timeout: Execution timeout in seconds
+
+        Returns:
+            Final workflow state
+
+        Example:
+            >>> from src.workflow_graph import WorkflowGraph, WorkflowNode, NodeType
+            >>> graph = WorkflowGraph()
+            >>> graph.add_node(WorkflowNode("start", NodeType.START))
+            >>> # ... add more nodes
+            >>> result = await scheduler.execute_workflow(graph)
+        """
+        # Import here to avoid circular dependency
+        from src.workflow_graph import WorkflowState
+
+        # Emit workflow start event
+        if self.event_bus:
+            await self.event_bus.emit('workflow.started', {
+                'graph_id': workflow.graph_id,
+                'node_count': len(workflow.nodes),
+                'edge_count': len(workflow.edges)
+            }, source='scheduler')
+
+        # Increment metrics
+        if self.metrics:
+            self.metrics.inc('workflows.started')
+
+        # Validate workflow
+        issues = workflow.validate()
+        if issues:
+            print(f"⚠️  Workflow validation warnings:")
+            for issue in issues:
+                print(f"    - {issue}")
+
+        print(f"\n🔀 [WORKFLOW] Executing graph '{workflow.graph_id}'")
+        print(f"   Nodes: {len(workflow.nodes)}, Edges: {len(workflow.edges)}")
+
+        # Execute workflow
+        start_time = time.time()
+        try:
+            if self.metrics:
+                with self.metrics.time('workflow.execution'):
+                    final_state = await workflow.execute(initial_state, timeout=timeout)
+            else:
+                final_state = await workflow.execute(initial_state, timeout=timeout)
+
+            success = not final_state.get('error')
+
+        except Exception as e:
+            success = False
+            print(f"❌ Workflow execution failed: {e}")
+
+            # Create error state
+            from src.workflow_graph import WorkflowState
+            final_state = initial_state or WorkflowState()
+            final_state.set('error', str(e))
+            final_state.metadata['end_time'] = time.time()
+            final_state.metadata['duration'] = time.time() - start_time
+
+        # Track metrics
+        if self.metrics:
+            if success:
+                self.metrics.inc('workflows.completed')
+            else:
+                self.metrics.inc('workflows.failed')
+
+        # Emit workflow complete event
+        if self.event_bus:
+            await self.event_bus.emit('workflow.completed', {
+                'graph_id': workflow.graph_id,
+                'success': success,
+                'duration': final_state.metadata.get('duration', 0),
+                'node_count': len(final_state.history)
+            }, source='scheduler')
+
+        # Print execution summary
+        duration = final_state.metadata.get('duration', 0)
+        path = ' → '.join(final_state.history) if final_state.history else 'none'
+        print(f"\n✅ Workflow completed in {duration:.2f}s")
+        print(f"   Execution path: {path}")
+
+        return final_state
+
+    def create_task_workflow(
+        self,
+        tasks: List[Task],
+        workflow_type: str = "sequential"
+    ) -> 'WorkflowGraph':
+        """
+        Create a workflow graph from a list of tasks
+
+        Args:
+            tasks: List of tasks to convert
+            workflow_type: Type of workflow ("sequential", "parallel", or "dependency")
+
+        Returns:
+            WorkflowGraph configured for the tasks
+
+        Example:
+            >>> tasks = [
+            ...     Task(id="task1", prompt="Write a function", task_type="coding"),
+            ...     Task(id="task2", prompt="Write tests", task_type="coding"),
+            ... ]
+            >>> graph = scheduler.create_task_workflow(tasks, "sequential")
+            >>> result = await scheduler.execute_workflow(graph)
+        """
+        from src.workflow_graph import WorkflowGraph, WorkflowNode, WorkflowEdge, NodeType, EdgeType
+
+        graph = WorkflowGraph(graph_id=f"{workflow_type}_workflow")
+
+        # Add start and end nodes
+        graph.add_node(WorkflowNode("start", NodeType.START))
+        graph.add_node(WorkflowNode("end", NodeType.END))
+
+        # Create task handlers (with proper closure)
+        def make_handler(t: Task) -> Callable:
+            """Create handler for task execution"""
+            async def handler(state: 'WorkflowState') -> Dict[str, Any]:
+                # Select agent
+                agent_name = self.select_agent(t)
+
+                # Execute task
+                result = await self.execute_task(t, agent_name)
+
+                # Store result in state
+                return {
+                    f"task_{t.id}_result": result.get('result'),
+                    f"task_{t.id}_success": result.get('success'),
+                    f"task_{t.id}_latency": result.get('latency')
+                }
+
+            return handler
+
+        task_handlers = {task.id: make_handler(task) for task in tasks}
+
+        # Build workflow based on type
+        if workflow_type == "sequential":
+            # Sequential workflow: start -> task1 -> task2 -> ... -> end
+            prev = "start"
+            for task in tasks:
+                node = WorkflowNode(
+                    node_id=task.id,
+                    node_type=NodeType.TASK,
+                    handler=task_handlers[task.id],
+                    config={'task_type': task.task_type}
+                )
+                graph.add_node(node)
+                graph.add_edge(WorkflowEdge(prev, task.id))
+                prev = task.id
+
+            graph.add_edge(WorkflowEdge(prev, "end"))
+
+        elif workflow_type == "parallel":
+            # Parallel workflow: start -> [task1, task2, ...] -> end
+            task_ids = []
+            for task in tasks:
+                node = WorkflowNode(
+                    node_id=task.id,
+                    node_type=NodeType.TASK,
+                    handler=task_handlers[task.id],
+                    config={'task_type': task.task_type}
+                )
+                graph.add_node(node)
+                task_ids.append(task.id)
+
+            # Add parallel branches
+            graph.add_parallel_branches("start", task_ids, "end")
+
+        elif workflow_type == "dependency":
+            # Dependency-based workflow: respect task dependencies
+            for task in tasks:
+                node = WorkflowNode(
+                    node_id=task.id,
+                    node_type=NodeType.TASK,
+                    handler=task_handlers[task.id],
+                    config={'task_type': task.task_type}
+                )
+                graph.add_node(node)
+
+            # Connect based on dependencies
+            for task in tasks:
+                if not task.depends_on:
+                    # No dependencies, connect to start
+                    graph.add_edge(WorkflowEdge("start", task.id))
+                else:
+                    # Has dependencies, connect from dependency tasks
+                    for dep_id in task.depends_on:
+                        graph.add_edge(WorkflowEdge(dep_id, task.id))
+
+            # Connect leaf tasks to end
+            leaf_tasks = [
+                task.id for task in tasks
+                if not any(task.id in t.depends_on for t in tasks if t.depends_on)
+            ]
+            for leaf_id in leaf_tasks:
+                graph.add_edge(WorkflowEdge(leaf_id, "end"))
+
+        else:
+            raise ValueError(f"Unknown workflow type: {workflow_type}")
+
+        return graph
+
     def _analyze_workspace(self, workspace_path: str) -> Dict[str, Any]:
         """
         Analyze workspace state for agent context
@@ -717,7 +932,7 @@ class MultiAgentScheduler:
         import os
 
         workspace = Path(workspace_path)
-        
+
         if not workspace.exists():
             return {
                 'total_files': 0,
@@ -725,23 +940,23 @@ class MultiAgentScheduler:
                 'directory_structure': [],
                 'completed_tasks': []
             }
-        
+
         # Count files by type
         total_files = 0
         files_by_type = {}
-        
+
         for file_path in workspace.rglob('*'):
             if file_path.is_file():
                 total_files += 1
                 ext = file_path.suffix or 'no_extension'
                 files_by_type[ext] = files_by_type.get(ext, 0) + 1
-        
+
         # Get directory structure (top level only)
         directory_structure = [
-            d.name for d in workspace.iterdir() 
+            d.name for d in workspace.iterdir()
             if d.is_dir() and not d.name.startswith('.')
         ]
-        
+
         # Get completed tasks from logger if available
         completed_tasks = []
         if self.logger:
@@ -749,7 +964,7 @@ class MultiAgentScheduler:
                 task_id for task_id, log in self.logger.task_logs.items()
                 if log.get('success', False)
             ]
-        
+
         return {
             'total_files': total_files,
             'files_by_type': files_by_type,

@@ -112,52 +112,127 @@ This project implements a **Multi-Agent Intelligent Scheduler** capable of:
 
 ### Prerequisites
 
-- Python 3.10+
-- (Optional) API keys: Claude, OpenAI
-- (Optional) CLI tools for subscription-based usage:
+- **Python 3.10+** (推荐 3.11)
+- **可选**: API keys (Claude, OpenAI)
+- **可选**: CLI 工具 (订阅制，更省钱):
   - Claude Code CLI: `npm install -g @anthropic-ai/claude-code`
   - Gemini CLI: `npm install -g @google/gemini-cli`
 
-### Installation
+### 安装步骤
 
 ```bash
-# 1. Clone/download the project
+# 1. 克隆/下载项目
 cd multi-agent-scheduler
 
-# 2. Create virtual environment (recommended)
+# 2. 创建虚拟环境（强烈推荐）
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# 3. Install dependencies
+# 3. 安装依赖
 pip install -r requirements.txt
 
-# 4. Configure API keys (optional, not needed for Mock mode)
-cp config.py.example config.py
-# Edit config.py to add your API keys
+# 4. 验证安装
+python -c "import anthropic; print('✅ 安装成功')"
 ```
 
-### Quick Run (Mock Mode)
+### ⚡ 5分钟快速开始（无需配置）
+
+**最简单的方式 - Mock 模式**（无需任何API密钥）：
 
 ```bash
-# No API keys needed, run immediately
+# 直接运行，立即体验
 python demo.py
-# Select "2. Use Mock Agents"
+# 选择 "2. Use Mock Agents"
 ```
 
-### Using Real APIs
+**或者运行这个最简单的示例**：
+
+```python
+# minimal_example.py
+import asyncio
+from src.scheduler import MultiAgentScheduler, Task
+from src.agents import MockAgent
+
+async def main():
+    # 1. 创建 Mock Agent（无需API密钥）
+    scheduler = MultiAgentScheduler(agents={"mock": MockAgent()})
+
+    # 2. 定义3个简单任务
+    tasks = [
+        Task(id="task1", prompt="总结量子计算", task_type="general"),
+        Task(id="task2", prompt="写一个排序算法", task_type="general"),
+        Task(id="task3", prompt="分析云计算优势", task_type="general")
+    ]
+
+    # 3. 执行调度（自动并行）
+    result = await scheduler.schedule(tasks)
+
+    # 4. 查看结果
+    scheduler.print_summary(result)
+
+asyncio.run(main())
+```
+
+运行：`python minimal_example.py`
+
+### 🔑 配置真实 API（生产使用）
+
+#### 方式1: 环境变量（推荐）
 
 ```bash
-# 1. Configure keys
+# 设置 API 密钥
 export ANTHROPIC_API_KEY="sk-ant-api03-..."
 export OPENAI_API_KEY="sk-proj-..."
 
-# 2. Install Gemini CLI (optional)
-npm install -g @google/gemini-cli
-gemini auth login
+# 验证配置
+python -c "import os; print('✅ Claude key:', 'sk-ant' in os.getenv('ANTHROPIC_API_KEY', ''))"
 
-# 3. Run Demo
+# 运行测试
 python demo.py
-# Select "1. Use Real API"
+# 选择 "1. Use Real API"
+```
+
+#### 方式2: 配置文件
+
+```bash
+# 1. 创建配置文件
+cp src/config.yaml.example src/config.yaml
+
+# 2. 编辑 config.yaml
+nano src/config.yaml
+```
+
+```yaml
+# src/config.yaml
+agents:
+  claude:
+    enabled: true
+    model: "claude-sonnet-4-5-20250929"
+    max_tokens: 4000
+
+  openai:
+    enabled: false  # 暂时不用可以关闭
+    model: "gpt-4"
+
+  gemini:
+    enabled: true
+    use_cli: true  # 使用CLI模式（更便宜）
+```
+
+#### 方式3: .env 文件
+
+```bash
+# 创建 .env 文件
+cat > .env << EOF
+ANTHROPIC_API_KEY=sk-ant-api03-...
+OPENAI_API_KEY=sk-proj-...
+# 可选：自定义配置
+DEFAULT_MODEL=claude-sonnet-4-5-20250929
+MAX_CONCURRENT_TASKS=10
+EOF
+
+# 加载环境变量
+source .env  # 或者使用 python-dotenv 自动加载
 ```
 
 ### Using CLI Agents (Cost-Effective)
@@ -483,6 +558,267 @@ python demo.py
 
 ---
 
+## ⚙️ 配置优化指南
+
+### 性能优化配置
+
+#### 1. 并发控制优化
+
+```python
+# src/config.yaml
+scheduler:
+  max_concurrent_tasks: 10  # 根据API限制调整（推荐 5-15）
+  batch_size: 5             # 每批次任务数量
+  retry_attempts: 3         # 失败重试次数
+  timeout_seconds: 120      # 任务超时时间
+```
+
+**调优建议**：
+- **低API限额**: `max_concurrent_tasks: 3-5`
+- **中等使用**: `max_concurrent_tasks: 10`（默认）
+- **大量任务**: `max_concurrent_tasks: 15-20`
+
+#### 2. Agent 选择策略
+
+```python
+# 根据任务类型智能选择 Agent
+scheduler = MultiAgentScheduler(agents={
+    'claude': ClaudeAgent(),  # 复杂任务、代码生成
+    'openai': OpenAIAgent(),  # 分析、推理
+    'gemini': GeminiAgent()   # 简单任务、翻译
+})
+
+# 自定义选择策略
+scheduler.agent_selection_strategy = {
+    'coding': 'claude',      # 代码任务用 Claude
+    'simple': 'gemini',      # 简单任务用 Gemini（免费）
+    'analysis': 'openai',    # 分析任务用 OpenAI
+    'general': 'claude'      # 默认用 Claude
+}
+```
+
+#### 3. 成本优化配置
+
+```yaml
+# 成本优先配置（最省钱）
+agents:
+  gemini:
+    enabled: true
+    use_cli: true          # 使用CLI（免费）
+  claude:
+    enabled: true
+    model: "claude-haiku"  # 使用更便宜的模型
+    only_for_types: ["coding", "complex"]  # 仅用于特定任务
+
+# 性能优先配置（最快速）
+agents:
+  claude:
+    enabled: true
+    model: "claude-sonnet-4-5"  # 最新最强模型
+  openai:
+    enabled: true
+    model: "gpt-4-turbo"
+  max_concurrent_tasks: 20      # 高并发
+```
+
+#### 4. 检查点配置（可靠性）
+
+```python
+# 启用检查点以防止任务丢失
+scheduler = MultiAgentScheduler(
+    agents=agents,
+    enable_checkpoints=True,
+    checkpoint_manager=CheckpointManager()
+)
+
+# 对于长时间运行的任务，启用检查点
+result = await scheduler.execute_workflow(
+    workflow,
+    enable_checkpoints=True,
+    execution_id="my_important_task"
+)
+```
+
+### 资源优化
+
+#### 内存优化
+
+```python
+# 对于大量任务，分批处理
+async def process_large_task_list(tasks, batch_size=50):
+    results = []
+    for i in range(0, len(tasks), batch_size):
+        batch = tasks[i:i+batch_size]
+        result = await scheduler.schedule(batch)
+        results.append(result)
+        # 清理已完成的任务
+        del batch
+    return results
+```
+
+#### 网络优化
+
+```yaml
+# 网络超时配置
+network:
+  request_timeout: 60      # API 请求超时（秒）
+  connect_timeout: 10      # 连接超时（秒）
+  retry_delay: 2           # 重试延迟（秒）
+  max_retries: 3           # 最大重试次数
+```
+
+---
+
+## 🐛 常见问题与故障排查
+
+### 问题1: ImportError: No module named 'anthropic'
+
+**原因**: 依赖未安装
+
+**解决**:
+```bash
+pip install -r requirements.txt
+# 或单独安装
+pip install anthropic openai psutil pytest-benchmark
+```
+
+### 问题2: API 密钥无效
+
+**错误信息**: `AuthenticationError: Invalid API key`
+
+**解决**:
+```bash
+# 1. 检查密钥格式
+echo $ANTHROPIC_API_KEY  # 应该以 sk-ant- 开头
+
+# 2. 重新设置
+export ANTHROPIC_API_KEY="sk-ant-api03-your-key-here"
+
+# 3. 验证
+python -c "from anthropic import Anthropic; c = Anthropic(); print('✅ API密钥有效')"
+```
+
+### 问题3: 任务执行过慢
+
+**原因**: 并发数设置过低或串行执行
+
+**解决**:
+```python
+# 1. 检查任务依赖
+tasks = [
+    Task(id="t1", prompt="...", depends_on=[]),  # ✅ 无依赖
+    Task(id="t2", prompt="...", depends_on=[]),  # ✅ 无依赖
+    # 可以并行执行
+]
+
+# 2. 增加并发数
+# 在 config.yaml 中设置
+scheduler:
+  max_concurrent_tasks: 15  # 从10增加到15
+
+# 3. 使用强制并行模式
+result = await scheduler.schedule(tasks, mode=ExecutionMode.PARALLEL)
+```
+
+### 问题4: 内存占用过高
+
+**解决**:
+```python
+# 1. 分批处理
+batch_size = 50
+for batch in chunks(large_task_list, batch_size):
+    result = await scheduler.schedule(batch)
+    process_result(result)  # 立即处理并释放
+
+# 2. 禁用历史记录（如不需要）
+scheduler.execution_history = []  # 定期清理
+
+# 3. 使用流式响应（对于大输出）
+async for chunk in scheduler.execute_task_stream(task, agent_name):
+    print(chunk['chunk'], end='', flush=True)
+```
+
+### 问题5: 检查点测试失败
+
+**错误**: `TypeError: unsupported operand type(s) for /: 'str' and 'str'`
+
+**解决**:
+```python
+# 确保使用 Path 对象
+from pathlib import Path
+checkpoint_manager.backend.checkpoint_dir = Path("/tmp/checkpoints")
+# 而不是字符串: "/tmp/checkpoints"
+```
+
+### 问题6: Agent 选择警告
+
+**警告**: `[WARN] Agent selection error: No enabled agents available`
+
+**解决**:
+```yaml
+# 检查 config.yaml，确保至少一个 agent 启用
+agents:
+  claude:
+    enabled: true  # ← 确保为 true
+  gemini:
+    enabled: true
+```
+
+### 问题7: 性能基准测试超时
+
+**解决**:
+```python
+# 调整性能阈值
+# 在 tests/benchmark/test_benchmark_scheduler.py
+assert benchmark.stats['mean'] < 12.0  # 从 5.0 增加到 12.0
+```
+
+---
+
+## 📊 性能监控
+
+### 启用详细日志
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+# 或使用项目的 logger
+from src.logger import ExecutionLogger
+logger = ExecutionLogger(log_file="execution.log")
+scheduler = MultiAgentScheduler(agents=agents, logger=logger)
+```
+
+### 查看性能报告
+
+```bash
+# 运行性能测试
+python -m pytest tests/benchmark/ --benchmark-only -v
+
+# 查看详细报告
+cat PERFORMANCE_BENCHMARK_RESULTS.md
+
+# 生成 JSON 数据
+python -m pytest tests/benchmark/ --benchmark-json=output.json
+```
+
+### 实时监控（生产环境）
+
+```python
+# 启用 Prometheus 监控
+from src.health import app as health_app
+import uvicorn
+
+# 启动健康检查服务器
+uvicorn.run(health_app, host="0.0.0.0", port=8000)
+
+# 访问监控端点
+# http://localhost:8000/health
+# http://localhost:8000/metrics
+```
+
+---
+
 ## Future Extensions
 
 - [ ] Web UI (Streamlit/Gradio)
@@ -490,8 +826,8 @@ python demo.py
 - [ ] Cost tracking dashboard
 - [ ] Support for more AI models (Llama, Mistral)
 - [ ] Task history and replay
-- [ ] Configuration file system
-- [ ] Docker containerized deployment
+- [ ] Configuration file system ✅ (已完成)
+- [ ] Docker containerized deployment ✅ (已完成)
 - [ ] Distributed scheduling (multi-machine)
 
 ---

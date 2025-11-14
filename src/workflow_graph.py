@@ -458,7 +458,28 @@ class WorkflowGraph:
             while True:
                 # Execute current node
                 node = self.nodes[current]
-                state = await node.execute(state)
+                try:
+                    state = await node.execute(state)
+                except Exception as e:
+                    # Node failed - save checkpoint with progress before failing
+                    if checkpoint_manager and execution_id:
+                        from src.checkpoint import CheckpointStatus
+                        pending = [
+                            nid for nid in self.nodes.keys()
+                            if nid not in state.history and nid not in self.end_nodes
+                        ]
+                        await checkpoint_manager.create_checkpoint(
+                            execution_id=execution_id,
+                            status=CheckpointStatus.FAILED,
+                            current_node=current,
+                            completed_nodes=state.history.copy(),
+                            pending_nodes=pending,
+                            workflow_state=state.data.copy(),
+                            error=str(e),
+                            metadata={'graph_id': self.graph_id, 'failed_node': current}
+                        )
+                    # Re-raise to let scheduler handle the error
+                    raise
 
                 # Check if reached end node
                 if current in self.end_nodes:
@@ -504,13 +525,39 @@ class WorkflowGraph:
                         for node_id in next_nodes
                     ])
 
-                    # Merge results (simple merge - last write wins)
+                    # Merge results from all branches
                     for branch_state in branch_states:
+                        # Merge data (last write wins)
                         state.update(branch_state.data)
 
-                    # Continue from first branch's end point
-                    # (This is simplified - in production you'd handle joins properly)
-                    break
+                        # Merge history (add nodes not already in history)
+                        for node_id in branch_state.history:
+                            if node_id not in state.history:
+                                state.history.append(node_id)
+
+                    # Find join node (node that all branches converge to)
+                    # Look for nodes that have edges from multiple of our parallel branches
+                    join_candidates = {}
+                    for branch_node in next_nodes:
+                        # Get all descendants of this branch node
+                        descendants = self._find_next_nodes(branch_node, state)
+                        for desc in descendants:
+                            join_candidates[desc] = join_candidates.get(desc, 0) + 1
+
+                    # Find node that all branches point to
+                    join_node = None
+                    for node_id, count in join_candidates.items():
+                        incoming_count = sum(1 for edge in self.edges if edge.to_node == node_id)
+                        if incoming_count == len(next_nodes):
+                            join_node = node_id
+                            break
+
+                    if join_node:
+                        # Continue from join node
+                        current = join_node
+                    else:
+                        # No join node found, end workflow
+                        break
 
                 # Single next node
                 current = next_nodes[0]
@@ -554,7 +601,15 @@ class WorkflowGraph:
             if not next_nodes or len(next_nodes) > 1:
                 break  # End branch or nested parallel
 
-            current = next_nodes[0]
+            # Check if next node is a join point (has multiple incoming edges)
+            next_node = next_nodes[0]
+            incoming_count = sum(1 for edge in self.edges if edge.to_node == next_node)
+            if incoming_count > 1:
+                # This is a join point - don't execute it in this branch
+                # It will be executed by the main loop after all branches complete
+                break
+
+            current = next_node
 
         return state
 

@@ -896,13 +896,16 @@ class MultiAgentScheduler:
         if not checkpoint:
             raise ValueError(f"No checkpoint found for execution {execution_id}")
 
-        if checkpoint.status not in [CheckpointStatus.RUNNING, CheckpointStatus.PAUSED]:
+        # Allow resuming from RUNNING, PAUSED, or FAILED states
+        if checkpoint.status not in [CheckpointStatus.RUNNING, CheckpointStatus.PAUSED, CheckpointStatus.FAILED]:
             raise ValueError(f"Cannot resume from status: {checkpoint.status.value}")
 
         print(f"\n🔄 [RESUME] Resuming workflow '{workflow.graph_id}'")
         print(f"   Execution ID: {execution_id}")
         print(f"   From checkpoint: {checkpoint.checkpoint_id}")
         print(f"   Completed nodes: {len(checkpoint.completed_nodes)}")
+        if checkpoint.current_node:
+            print(f"   Resuming from node: {checkpoint.current_node}")
 
         # Restore state
         initial_state = WorkflowState(
@@ -911,14 +914,42 @@ class MultiAgentScheduler:
             metadata=checkpoint.metadata
         )
 
+        # Clear error from previous execution to allow retry
+        if 'error' in initial_state.data:
+            del initial_state.data['error']
+        if 'failed_node' in initial_state.data:
+            del initial_state.data['failed_node']
+
+        # Determine start node for resumption
+        # If failed at a node, retry that node. Otherwise, continue from current_node
+        start_node = None
+        if checkpoint.status == CheckpointStatus.FAILED and checkpoint.current_node:
+            # Retry the failed node
+            start_node = checkpoint.current_node
+        elif checkpoint.current_node:
+            # Resume from the next node after current_node
+            # For now, we'll pass current_node and let the workflow find the next one
+            # This is a simplification - ideally we'd find the actual next node
+            start_node = checkpoint.current_node
+
         # Resume execution
-        return await self.execute_workflow(
-            workflow,
-            initial_state=initial_state,
-            timeout=timeout,
-            execution_id=execution_id,
-            enable_checkpoints=True
-        )
+        from src.workflow_graph import WorkflowGraph
+        if start_node:
+            return await workflow.execute(
+                initial_state=initial_state,
+                start_node=start_node,
+                timeout=timeout,
+                checkpoint_manager=self.checkpoint_manager,
+                execution_id=execution_id
+            )
+        else:
+            return await self.execute_workflow(
+                workflow,
+                initial_state=initial_state,
+                timeout=timeout,
+                execution_id=execution_id,
+                enable_checkpoints=True
+            )
 
     def create_task_workflow(
         self,

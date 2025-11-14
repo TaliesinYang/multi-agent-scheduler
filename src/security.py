@@ -9,7 +9,7 @@ import base64
 from typing import Optional
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pathlib import Path
 
 
@@ -60,7 +60,7 @@ class SecureKeyManager:
             Fernet cipher instance
         """
         # Derive encryption key from master password using PBKDF2
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=b'multi-agent-scheduler-salt',  # Static salt for reproducibility

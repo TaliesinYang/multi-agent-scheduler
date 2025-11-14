@@ -167,6 +167,9 @@ class Tracer:
         attributes: Optional[Dict[str, Any]] = None
     ):
         """Context manager for tracing"""
+        # Save previous span for restoration
+        previous_span = self.current_span
+
         span = self.start_span(name, kind, attributes)
         try:
             yield span
@@ -178,6 +181,8 @@ class Tracer:
             raise
         finally:
             self.end_span(span)
+            # Restore previous span for nested tracing
+            self.current_span = previous_span
 
     def get_trace(self, trace_id: str) -> List[Span]:
         """Get all spans for trace"""

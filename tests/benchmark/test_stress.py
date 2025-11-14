@@ -10,8 +10,8 @@ import time
 import psutil
 import os
 
-from src.scheduler import Scheduler
-from src.models import Task, Agent
+from src.scheduler import MultiAgentScheduler, Task
+from src.agents import MockAgent
 from src.workflow_graph import WorkflowGraph, WorkflowNode, WorkflowEdge, NodeType, WorkflowState
 
 
@@ -20,26 +20,16 @@ class TestStressConcurrency:
 
     @pytest.fixture
     def mock_agent(self):
-        class MockAgent(Agent):
-            def __init__(self):
-                super().__init__("mock", "mock")
-                self.call_count = 0
-
-            async def call(self, prompt: str, **kwargs) -> str:
-                self.call_count += 1
-                await asyncio.sleep(0.01)
-                return f"Response {self.call_count}"
-
         return MockAgent()
 
     @pytest.mark.stress
     def test_high_concurrency_tasks(self, mock_agent):
         """Stress: 500 concurrent tasks"""
-        scheduler = Scheduler()
+        scheduler = MultiAgentScheduler(agents={"mock": mock_agent})
 
         task_count = 500
         tasks = [
-            Task(f"task_{i}", f"Concurrent task {i}", "mock")
+            Task(id=f"task_{i}", prompt=f"Concurrent task {i}", task_type="general", depends_on=[])
             for i in range(task_count)
         ]
 
@@ -49,16 +39,14 @@ class TestStressConcurrency:
         mem_before = process.memory_info().rss / 1024 / 1024
 
         loop = asyncio.get_event_loop()
-        result = loop.run_until_complete(
-            scheduler.execute_tasks(tasks, agents={"mock": mock_agent})
-        )
+        result = loop.run_until_complete(scheduler.schedule(tasks))
 
         duration = time.time() - start_time
         mem_after = process.memory_info().rss / 1024 / 1024
         mem_increase = mem_after - mem_before
 
         # Verification
-        assert len(result) == task_count
+        assert result.task_count == task_count
         throughput = task_count / duration
 
         print(f"\n🔥 High Concurrency Stress Test:")
@@ -312,13 +300,14 @@ class TestStressComposite:
     def test_full_system_stress(self):
         """Stress: Full system stress test (high concurrency + large state + checkpoints)"""
         from src.checkpoint import CheckpointManager
+        from pathlib import Path
         import tempfile
 
         # Setup
         temp_dir = tempfile.mkdtemp()
         checkpoint_manager = CheckpointManager()
         if hasattr(checkpoint_manager.backend, 'checkpoint_dir'):
-            checkpoint_manager.backend.checkpoint_dir = temp_dir
+            checkpoint_manager.backend.checkpoint_dir = Path(temp_dir)
 
         async def heavy_task(state: WorkflowState):
             await asyncio.sleep(0.01)

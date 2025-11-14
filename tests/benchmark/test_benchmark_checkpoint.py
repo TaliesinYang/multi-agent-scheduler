@@ -20,11 +20,12 @@ class TestCheckpointPerformance:
     @pytest.fixture
     def checkpoint_manager(self):
         """Create checkpoint manager with temp directory"""
+        from pathlib import Path
         temp_dir = tempfile.mkdtemp()
         manager = CheckpointManager()
         # Override checkpoint directory
         if hasattr(manager.backend, 'checkpoint_dir'):
-            manager.backend.checkpoint_dir = temp_dir
+            manager.backend.checkpoint_dir = Path(temp_dir)
         yield manager
         # Cleanup
         import shutil
@@ -205,10 +206,11 @@ class TestCheckpointScalability:
 
     @pytest.fixture
     def checkpoint_manager(self):
+        from pathlib import Path
         temp_dir = tempfile.mkdtemp()
         manager = CheckpointManager()
         if hasattr(manager.backend, 'checkpoint_dir'):
-            manager.backend.checkpoint_dir = temp_dir
+            manager.backend.checkpoint_dir = Path(temp_dir)
         yield manager
         import shutil
         shutil.rmtree(temp_dir, ignore_errors=True)

@@ -34,14 +34,14 @@ class TestSchedulerPerformance:
             tasks = [
                 Task(
                     id=f"task_{i}",
-                    description=f"Sequential task {i}",
-                    agent_type="mock",
-                    dependencies=[] if i == 0 else [f"task_{i-1}"]
+                    prompt=f"Sequential task {i}",
+                    task_type="general",
+                    depends_on=[] if i == 0 else [f"task_{i-1}"]
                 )
                 for i in range(10)
             ]
 
-            result = await scheduler.schedule_tasks(tasks)
+            result = await scheduler.schedule(tasks)
             return result
 
         def run_sync():
@@ -61,14 +61,14 @@ class TestSchedulerPerformance:
             tasks = [
                 Task(
                     id=f"task_{i}",
-                    description=f"Parallel task {i}",
-                    agent_type="mock",
-                    dependencies=[]
+                    prompt=f"Parallel task {i}",
+                    task_type="general",
+                    depends_on=[]
                 )
                 for i in range(10)
             ]
 
-            result = await scheduler.schedule_tasks(tasks)
+            result = await scheduler.schedule(tasks)
             return result
 
         def run_sync():
@@ -91,13 +91,14 @@ class TestSchedulerPerformance:
             tasks = [
                 Task(
                     id=f"task_{i}",
-                    description=f"Memory test task {i}",
-                    agent_type="mock"
+                    prompt=f"Memory test task {i}",
+                    task_type="general",
+                    depends_on=[]
                 )
                 for i in range(100)
             ]
 
-            result = await scheduler.schedule_tasks(tasks)
+            result = await scheduler.schedule(tasks)
             return result
 
         loop = asyncio.get_event_loop()
@@ -129,12 +130,12 @@ class TestSchedulerScalability:
         """Test scalability with varying task counts"""
         async def run_tasks():
             tasks = [
-                Task(f"task_{i}", f"Task {i}", "mock")
+                Task(id=f"task_{i}", prompt=f"Task {i}", task_type="general", depends_on=[])
                 for i in range(task_count)
             ]
 
             start_time = time.time()
-            result = await scheduler.schedule_tasks(tasks)
+            result = await scheduler.schedule(tasks)
             duration = time.time() - start_time
 
             return duration

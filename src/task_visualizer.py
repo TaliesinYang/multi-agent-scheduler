@@ -4,7 +4,7 @@ Real-time dependency graph and execution status display
 """
 
 from typing import List, Dict, Optional, Set
-from scheduler import Task
+from src.scheduler import Task
 from dataclasses import dataclass
 
 
@@ -349,7 +349,7 @@ class TaskVisualizer:
 # Example usage
 if __name__ == "__main__":
     # Test visualization
-    from scheduler import Task
+    from src.scheduler import Task
 
     # Create sample tasks
     tasks = [

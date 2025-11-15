@@ -1,0 +1,168 @@
+# Multi-Agent Scheduler - CLI客户端配置
+# 适用于使用GitHub Copilot、Claude CLI等本地客户端的用户
+# 不需要API密钥，使用本地安装的CLI工具
+
+# ============================================
+# 运行模式配置
+# ============================================
+mode: "cli"  # 强制使用CLI客户端模式
+
+# ============================================
+# CLI Agent 配置
+# ============================================
+agents:
+  # GitHub Copilot Codex（推荐）
+  codex:
+    enabled: true                          # 启用Codex
+    cli_command: "codex"                   # CLI命令名
+    workspace: "./workspace"               # 工作目录
+    max_concurrent: 5                      # 最大并发数（建议不超过5）
+    timeout: 600                           # 超时时间（秒）
+    skip_git_check: true                   # 跳过Git仓库检查
+
+  # Claude CLI（如果已安装）
+  claude_cli:
+    enabled: false                         # 默认关闭，需要时启用
+    cli_command: "claude"                  # CLI命令名
+    max_concurrent: 3                      # 最大并发数
+    timeout: 300                           # 超时时间（秒）
+    output_format: "json"                  # 输出格式
+
+  # 自定义CLI Agent（可选）
+  custom_cli:
+    enabled: false                         # 默认关闭
+    cli_command: "my-ai-cli"               # 自定义CLI命令
+    max_concurrent: 5
+    timeout: 300
+
+  # Mock Agent（测试/开发时使用）
+  mock:
+    enabled: true                          # 保留Mock用于快速测试
+    response_delay: 0.5                    # 模拟延迟
+
+# ============================================
+# Agent 选择策略
+# ============================================
+scheduler:
+  # 任务类型 → Agent 映射
+  agent_selection_strategy:
+    coding: "codex"              # 代码生成任务 → Codex
+    debugging: "codex"           # 代码调试 → Codex
+    testing: "codex"             # 测试编写 → Codex
+    refactoring: "codex"         # 代码重构 → Codex
+
+    analysis: "claude_cli"       # 分析任务 → Claude CLI
+    design: "claude_cli"         # 设计任务 → Claude CLI
+    documentation: "claude_cli"  # 文档任务 → Claude CLI
+
+    simple: "mock"               # 简单任务 → Mock（测试用）
+    general: "codex"             # 通用任务 → Codex（默认）
+
+  # 调度配置
+  max_concurrent_tasks: 5        # CLI模式建议降低并发数
+  batch_size: 3                  # 每批次任务数
+  retry_attempts: 2              # 重试次数（CLI较稳定）
+  timeout_seconds: 600           # 任务超时（CLI可能较慢）
+  execution_mode: "auto"         # 执行模式
+
+# ============================================
+# CLI 特定配置
+# ============================================
+cli_settings:
+  # Codex 特定设置
+  codex:
+    use_exec_format: true        # 使用 'codex exec' 格式
+    auto_approve: false          # 是否自动确认（安全考虑）
+    verbose: false               # 详细输出
+
+  # 通用CLI设置
+  general:
+    retry_on_timeout: true       # 超时时重试
+    retry_on_error: true         # 错误时重试
+    max_retry_delay: 10          # 最大重试延迟（秒）
+    log_cli_output: true         # 记录CLI输出
+
+# ============================================
+# 工作区配置
+# ============================================
+workspace:
+  base_path: "./workspace"       # 基础工作目录
+  create_if_missing: true        # 不存在时自动创建
+  cleanup_on_exit: false         # 退出时不清理（保留结果）
+
+# ============================================
+# 检查点配置（推荐启用）
+# ============================================
+checkpoint:
+  enabled: true                  # CLI模式推荐启用检查点
+  checkpoint_dir: "./checkpoints_cli"
+  checkpoint_interval: 5         # 每5个任务保存一次
+  max_checkpoints: 50
+  auto_recovery: true            # 自动从检查点恢复
+
+# ============================================
+# 日志配置
+# ============================================
+logging:
+  level: "INFO"                  # 日志级别
+  log_file: "scheduler_cli.log" # CLI专用日志文件
+  log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  enable_console: true           # 输出到控制台
+
+  # CLI特定日志
+  log_cli_commands: true         # 记录执行的CLI命令
+  log_cli_responses: false       # 不记录完整响应（可能很长）
+
+# ============================================
+# 性能优化
+# ============================================
+performance:
+  # CLI模式通常较慢，需要更多耐心
+  enable_caching: true           # 启用缓存
+  cache_ttl_seconds: 7200        # 缓存2小时
+  enable_streaming: false        # CLI模式不支持流式
+
+  # 资源限制
+  memory_limit_mb: 1024          # 内存限制
+  max_process_time: 600          # 单个进程最大运行时间
+
+# ============================================
+# 监控配置（可选）
+# ============================================
+monitoring:
+  enabled: false                 # CLI模式通常不需要监控
+  health_check_port: 8001        # 如启用，使用不同端口
+  metrics_enabled: false
+  tracing_enabled: false
+
+# ============================================
+# 开发/调试配置
+# ============================================
+development:
+  debug: false                   # 调试模式
+  mock_mode: false               # 强制使用Mock
+  dry_run: false                 # 只显示将执行的命令，不实际执行
+  verbose_cli: true              # CLI详细输出
+  save_execution_history: true   # 保存执行历史
+
+# ============================================
+# 安全配置
+# ============================================
+security:
+  # CLI命令白名单（防止命令注入）
+  allowed_cli_commands:
+    - "codex"
+    - "claude"
+    - "my-ai-cli"
+
+  # 工作区隔离
+  sandbox_mode: false            # 是否启用沙箱模式
+  restrict_file_access: false    # 是否限制文件访问
+
+# ============================================
+# 成本优化（CLI模式通常免费或固定费用）
+# ============================================
+cost_optimization:
+  enabled: false                 # CLI模式通常不需要成本优化
+  prefer_free_agents: true       # 优先使用免费CLI
+  track_usage: true              # 跟踪使用量

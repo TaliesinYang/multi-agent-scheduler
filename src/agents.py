@@ -7,15 +7,28 @@ import asyncio
 import subprocess
 import time
 import shlex
-from typing import Dict, Optional
+from typing import Dict, Optional, Any, AsyncIterator
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
+from src.cli_adapters import CLIOutputAdapter
 
 
 class BaseAgent:
     """Base AI Agent Class"""
 
-    def __init__(self, name: str, max_concurrent: int = 10, workspace: str = None):
+    name: str
+    semaphore: asyncio.Semaphore
+    call_count: int
+    total_latency: float
+    total_tokens: int
+    workspace: Optional[str]
+
+    def __init__(
+        self,
+        name: str,
+        max_concurrent: int = 10,
+        workspace: Optional[str] = None
+    ) -> None:
         self.name = name
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.call_count = 0
@@ -23,7 +36,7 @@ class BaseAgent:
         self.total_tokens = 0
         self.workspace = workspace  # Working directory for file operations
 
-    async def call(self, prompt: str) -> Dict:
+    async def call(self, prompt: str) -> Dict[str, Any]:
         """
         Call AI model and return result
 
@@ -35,7 +48,24 @@ class BaseAgent:
         """
         raise NotImplementedError("Subclass must implement call() method")
 
-    def get_stats(self) -> Dict:
+    async def call_stream(self, prompt: str, **kwargs) -> AsyncIterator[str]:
+        """
+        Call AI model with streaming response
+
+        Args:
+            prompt: Input prompt
+            **kwargs: Additional arguments
+
+        Yields:
+            String chunks as they arrive
+
+        Example:
+            >>> async for chunk in agent.call_stream("Explain Python"):
+            ...     print(chunk, end='', flush=True)
+        """
+        raise NotImplementedError("Subclass must implement call_stream() method")
+
+    def get_stats(self) -> Dict[str, Any]:
         """Get statistics"""
         avg_latency = self.total_latency / self.call_count if self.call_count > 0 else 0
         return {
@@ -65,7 +95,16 @@ class RobustCLIAgent(BaseAgent):
                 )
     """
 
-    def __init__(self, name: str, cli_command: str, max_concurrent: int = 10, workspace: str = None):
+    cli_command: str
+    default_timeout: float
+
+    def __init__(
+        self,
+        name: str,
+        cli_command: str,
+        max_concurrent: int = 10,
+        workspace: Optional[str] = None
+    ) -> None:
         """
         Initialize robust CLI agent
 
@@ -84,7 +123,7 @@ class RobustCLIAgent(BaseAgent):
         prompt: str,
         timeout: Optional[float] = None,
         output_format: str = "json"
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Call CLI with robust error handling and timeout
 
@@ -144,8 +183,14 @@ class RobustCLIAgent(BaseAgent):
                 if process.returncode == 0:
                     result_text = stdout.decode('utf-8').strip()
 
+                    # NEW: Unwrap CLI-specific format using adapter
+                    unwrapped = CLIOutputAdapter.unwrap(result_text)
+                    clean_content = unwrapped['content']
+                    cli_metadata = unwrapped['metadata']
+                    cli_format = unwrapped['format']
+
                     # Estimate tokens (rough approximation for CLI agents)
-                    estimated_tokens = len(prompt.split()) + len(result_text.split())
+                    estimated_tokens = len(prompt.split()) + len(clean_content.split())
 
                     # Update statistics
                     self.call_count += 1
@@ -154,7 +199,9 @@ class RobustCLIAgent(BaseAgent):
 
                     return {
                         "agent": self.name,
-                        "result": result_text,
+                        "result": clean_content,  # Standardized content
+                        "metadata": cli_metadata,  # CLI-specific metadata
+                        "cli_format": cli_format,  # Format identifier (claude/gemini/raw)
                         "latency": latency,
                         "tokens": estimated_tokens,
                         "success": True
@@ -186,12 +233,21 @@ class RobustCLIAgent(BaseAgent):
 class ClaudeAgent(BaseAgent):
     """Claude API Agent"""
 
-    def __init__(self, api_key: str, max_concurrent: int = 20, model: str = "claude-sonnet-4-5-20250929", workspace: str = None):
+    client: AsyncAnthropic
+    model: str
+
+    def __init__(
+        self,
+        api_key: str,
+        max_concurrent: int = 20,
+        model: str = "claude-sonnet-4-5-20250929",
+        workspace: Optional[str] = None
+    ) -> None:
         super().__init__("Claude", max_concurrent, workspace)
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = model
 
-    async def call(self, prompt: str, max_tokens: int = 1024) -> Dict:
+    async def call(self, prompt: str, max_tokens: int = 1024) -> Dict[str, Any]:
         """Call Claude API"""
         async with self.semaphore:
             start_time = time.time()
@@ -219,16 +275,99 @@ class ClaudeAgent(BaseAgent):
                     "success": True
                 }
 
+            except asyncio.TimeoutError:
+                end_time = time.time()
+                print(f"⏱️  Claude API timeout after {end_time - start_time:.1f}s")
+                return {
+                    "agent": self.name,
+                    "result": "API request timed out",
+                    "latency": end_time - start_time,
+                    "tokens": 0,
+                    "success": False,
+                    "error": "Timeout",
+                    "error_type": "timeout"
+                }
+
             except Exception as e:
                 end_time = time.time()
+                error_type = type(e).__name__
+
+                # Log specific error types
+                if "rate_limit" in str(e).lower():
+                    print(f"🚦 Claude API rate limit hit")
+                    error_type = "rate_limit"
+                elif "authentication" in str(e).lower() or "api_key" in str(e).lower():
+                    print(f"🔑 Claude API authentication failed")
+                    error_type = "auth_error"
+                elif "overloaded" in str(e).lower():
+                    print(f"⚠️  Claude API overloaded")
+                    error_type = "overloaded"
+                else:
+                    print(f"❌ Claude API error: {error_type}: {str(e)[:100]}")
+
                 return {
                     "agent": self.name,
                     "result": f"Error: {str(e)}",
                     "latency": end_time - start_time,
                     "tokens": 0,
                     "success": False,
-                    "error": str(e)
+                    "error": str(e),
+                    "error_type": error_type
                 }
+
+    async def call_stream(self, prompt: str, max_tokens: int = 1024) -> AsyncIterator[str]:
+        """
+        Call Claude API with streaming response
+
+        Args:
+            prompt: Input prompt
+            max_tokens: Maximum tokens to generate
+
+        Yields:
+            Text chunks as they arrive from the API
+
+        Example:
+            >>> async for chunk in agent.call_stream("Explain async"):
+            ...     print(chunk, end='', flush=True)
+        """
+        async with self.semaphore:
+            start_time = time.time()
+
+            try:
+                async with self.client.messages.stream(
+                    model=self.model,
+                    max_tokens=max_tokens,
+                    messages=[{"role": "user", "content": prompt}]
+                ) as stream:
+                    async for text in stream.text_stream:
+                        yield text
+
+                # Update statistics after streaming completes
+                message = await stream.get_final_message()
+                end_time = time.time()
+                latency = end_time - start_time
+
+                self.call_count += 1
+                self.total_latency += latency
+                self.total_tokens += message.usage.total_tokens
+
+            except asyncio.TimeoutError:
+                end_time = time.time()
+                print(f"⏱️  Claude API stream timeout after {end_time - start_time:.1f}s")
+                yield f"\n[ERROR: Stream timeout after {end_time - start_time:.1f}s]"
+
+            except Exception as e:
+                end_time = time.time()
+                error_type = type(e).__name__
+
+                if "rate_limit" in str(e).lower():
+                    print(f"🚦 Claude API stream rate limit hit")
+                elif "authentication" in str(e).lower():
+                    print(f"🔑 Claude API stream authentication failed")
+                else:
+                    print(f"❌ Claude API stream error: {error_type}: {str(e)[:100]}")
+
+                yield f"\n[ERROR: {error_type}: {str(e)[:100]}]"
 
 
 class ClaudeCLIAgent(RobustCLIAgent):
@@ -243,7 +382,11 @@ class ClaudeCLIAgent(RobustCLIAgent):
         result = await agent.call("Explain quantum computing")
     """
 
-    def __init__(self, max_concurrent: int = 10, workspace: str = None):
+    def __init__(
+        self,
+        max_concurrent: int = 10,
+        workspace: Optional[str] = None
+    ) -> None:
         """
         Initialize Claude CLI agent
 
@@ -299,7 +442,13 @@ class CodexExecAgent(BaseAgent):
         result = await agent.call("Write a Python function to sort a list")
     """
 
-    def __init__(self, max_concurrent: int = 10, workspace: str = None):
+    default_timeout: float
+
+    def __init__(
+        self,
+        max_concurrent: int = 10,
+        workspace: Optional[str] = None
+    ) -> None:
         """
         Initialize Codex Exec agent
 
@@ -314,7 +463,7 @@ class CodexExecAgent(BaseAgent):
         self,
         prompt: str,
         timeout: Optional[float] = None
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Call Codex CLI using 'codex exec' command
 
@@ -445,12 +594,21 @@ class CodexExecAgent(BaseAgent):
 class OpenAIAgent(BaseAgent):
     """OpenAI API Agent"""
 
-    def __init__(self, api_key: str, max_concurrent: int = 20, model: str = "gpt-4-turbo", workspace: str = None):
+    client: AsyncOpenAI
+    model: str
+
+    def __init__(
+        self,
+        api_key: str,
+        max_concurrent: int = 20,
+        model: str = "gpt-4-turbo",
+        workspace: Optional[str] = None
+    ) -> None:
         super().__init__("OpenAI", max_concurrent, workspace)
         self.client = AsyncOpenAI(api_key=api_key)
         self.model = model
 
-    async def call(self, prompt: str, max_tokens: int = 1024) -> Dict:
+    async def call(self, prompt: str, max_tokens: int = 1024) -> Dict[str, Any]:
         """Call OpenAI API"""
         async with self.semaphore:
             start_time = time.time()
@@ -478,16 +636,109 @@ class OpenAIAgent(BaseAgent):
                     "success": True
                 }
 
+            except asyncio.TimeoutError:
+                end_time = time.time()
+                print(f"⏱️  OpenAI API timeout after {end_time - start_time:.1f}s")
+                return {
+                    "agent": self.name,
+                    "result": "API request timed out",
+                    "latency": end_time - start_time,
+                    "tokens": 0,
+                    "success": False,
+                    "error": "Timeout",
+                    "error_type": "timeout"
+                }
+
             except Exception as e:
                 end_time = time.time()
+                error_type = type(e).__name__
+
+                # Log specific error types
+                if "rate_limit" in str(e).lower() or "429" in str(e):
+                    print(f"🚦 OpenAI API rate limit hit")
+                    error_type = "rate_limit"
+                elif "invalid_api_key" in str(e).lower() or "401" in str(e):
+                    print(f"🔑 OpenAI API authentication failed")
+                    error_type = "auth_error"
+                elif "insufficient_quota" in str(e).lower():
+                    print(f"💰 OpenAI API quota exceeded")
+                    error_type = "quota_exceeded"
+                elif "model_not_found" in str(e).lower() or "404" in str(e):
+                    print(f"🔍 OpenAI model not found: {self.model}")
+                    error_type = "model_not_found"
+                else:
+                    print(f"❌ OpenAI API error: {error_type}: {str(e)[:100]}")
+
                 return {
                     "agent": self.name,
                     "result": f"Error: {str(e)}",
                     "latency": end_time - start_time,
                     "tokens": 0,
                     "success": False,
-                    "error": str(e)
+                    "error": str(e),
+                    "error_type": error_type
                 }
+
+    async def call_stream(self, prompt: str, max_tokens: int = 1024) -> AsyncIterator[str]:
+        """
+        Call OpenAI API with streaming response
+
+        Args:
+            prompt: Input prompt
+            max_tokens: Maximum tokens to generate
+
+        Yields:
+            Text chunks as they arrive from the API
+
+        Example:
+            >>> async for chunk in agent.call_stream("Explain Python"):
+            ...     print(chunk, end='', flush=True)
+        """
+        async with self.semaphore:
+            start_time = time.time()
+            total_tokens = 0
+
+            try:
+                stream = await self.client.chat.completions.create(
+                    model=self.model,
+                    max_tokens=max_tokens,
+                    messages=[{"role": "user", "content": prompt}],
+                    stream=True
+                )
+
+                async for chunk in stream:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        yield chunk.choices[0].delta.content
+
+                # Update statistics after streaming completes
+                end_time = time.time()
+                latency = end_time - start_time
+
+                self.call_count += 1
+                self.total_latency += latency
+                # Note: OpenAI streaming doesn't provide token count in real-time
+                # We'll estimate or leave it at 0
+                self.total_tokens += total_tokens
+
+            except asyncio.TimeoutError:
+                end_time = time.time()
+                print(f"⏱️  OpenAI API stream timeout after {end_time - start_time:.1f}s")
+                yield f"\n[ERROR: Stream timeout after {end_time - start_time:.1f}s]"
+
+            except Exception as e:
+                end_time = time.time()
+                error_type = type(e).__name__
+
+                if "rate_limit" in str(e).lower() or "429" in str(e):
+                    print(f"🚦 OpenAI API stream rate limit hit")
+                elif "invalid_api_key" in str(e).lower():
+                    print(f"🔑 OpenAI API stream authentication failed")
+                elif "insufficient_quota" in str(e).lower():
+                    print(f"💰 OpenAI API stream quota exceeded")
+                else:
+                    print(f"❌ OpenAI API stream error: {error_type}: {str(e)[:100]}")
+
+                yield f"\n[ERROR: {error_type}: {str(e)[:100]}]"
 
 
 class GeminiAgent(RobustCLIAgent):
@@ -507,7 +758,11 @@ class GeminiAgent(RobustCLIAgent):
         result = await agent.call("Explain quantum computing")
     """
 
-    def __init__(self, max_concurrent: int = 10, workspace: str = None):
+    def __init__(
+        self,
+        max_concurrent: int = 10,
+        workspace: Optional[str] = None
+    ) -> None:
         """
         Initialize Gemini CLI agent
 
@@ -526,11 +781,19 @@ class GeminiAgent(RobustCLIAgent):
 class MockAgent(BaseAgent):
     """Mock Agent (for testing, no real API required)"""
 
-    def __init__(self, name: str = "Mock", delay: float = 1.0, max_concurrent: int = 10, workspace: str = None):
+    delay: float
+
+    def __init__(
+        self,
+        name: str = "Mock",
+        delay: float = 1.0,
+        max_concurrent: int = 10,
+        workspace: Optional[str] = None
+    ) -> None:
         super().__init__(name, max_concurrent, workspace)
         self.delay = delay
 
-    async def call(self, prompt: str) -> Dict:
+    async def call(self, prompt: str) -> Dict[str, Any]:
         """Simulate API call"""
         async with self.semaphore:
             start_time = time.time()

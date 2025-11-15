@@ -6,9 +6,10 @@ Uses AI to automatically break down complex tasks into subtasks with dependencie
 
 import asyncio
 import json
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from anthropic import AsyncAnthropic
 from src.scheduler import Task
+from src.complexity_analyzer import get_analyzer, ComplexityScore
 
 
 class MetaAgent:
@@ -21,7 +22,10 @@ class MetaAgent:
         # Returns: [Design DB schema, Build API, Create frontend, Write tests]
     """
 
-    def __init__(self, api_key: str, model: str = "claude-sonnet-4-5-20250929"):
+    client: AsyncAnthropic
+    model: str
+
+    def __init__(self, api_key: str, model: str = "claude-sonnet-4-5-20250929") -> None:
         """
         Initialize Meta-Agent with Claude API
 
@@ -32,14 +36,21 @@ class MetaAgent:
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = model
 
-    async def decompose_task(self, user_input: str, min_tasks: int = 15, max_tasks: int = 20) -> List[Task]:
+    async def decompose_task(
+        self,
+        user_input: str,
+        min_tasks: Optional[int] = None,
+        max_tasks: Optional[int] = None,
+        use_dynamic_complexity: bool = True
+    ) -> List[Task]:
         """
-        Decompose user's complex task into structured subtasks
+        Decompose user's complex task into structured subtasks with dynamic complexity analysis
 
         Args:
             user_input: User's task description (e.g., "Build a website")
-            min_tasks: Minimum number of subtasks to generate (default: 15)
-            max_tasks: Maximum number of subtasks to generate (default: 20)
+            min_tasks: Minimum number of subtasks (None = auto-detect from complexity)
+            max_tasks: Maximum number of subtasks (None = auto-detect from complexity)
+            use_dynamic_complexity: Use complexity analyzer to determine task count
 
         Returns:
             List of Task objects with dependencies
@@ -53,6 +64,29 @@ class MetaAgent:
             task3: Add authentication
             task4: Write API tests
         """
+        # Dynamic complexity analysis
+        if use_dynamic_complexity and (min_tasks is None or max_tasks is None):
+            analyzer = get_analyzer()
+            complexity = analyzer.analyze(user_input)
+
+            detected_min, detected_max = analyzer.get_task_range(user_input)
+
+            # Use detected values if not explicitly provided
+            if min_tasks is None:
+                min_tasks = detected_min
+            if max_tasks is None:
+                max_tasks = detected_max
+
+            print(f"🔍 Complexity Analysis: {complexity.level.upper()} (score: {complexity.score}/100)")
+            print(f"📊 Recommended subtasks: {complexity.recommended_subtasks} (range: {detected_min}-{detected_max})")
+            print(f"💡 Reasoning: {complexity.reasoning}")
+        else:
+            # Fallback to defaults if dynamic analysis disabled
+            if min_tasks is None:
+                min_tasks = 15
+            if max_tasks is None:
+                max_tasks = 20
+
         prompt = self._build_decomposition_prompt(user_input, min_tasks, max_tasks)
 
         try:
@@ -159,54 +193,97 @@ Example of CORRECT output format (start immediately with '['):
         """
         Parse AI response into Task objects
 
-        Handles both clean JSON and markdown-wrapped JSON responses
+        NOTE: CLI format unwrapping (Claude/Gemini wrappers) and markdown removal
+        is now handled by CLIOutputAdapter in agents.py, so we expect clean JSON here.
         """
         try:
             # Clean up response text
             text = response_text.strip()
 
-            # First, try to extract from Claude CLI wrapper format
-            # Claude CLI with --output-format json returns: {"type":"result","result":"..."}
-            try:
-                wrapper = json.loads(text)
-                if isinstance(wrapper, dict) and 'result' in wrapper:
-                    text = wrapper['result']
-            except:
-                pass  # Not a wrapper format, continue with original text
-
-            # Remove markdown code blocks if present
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0].strip()
-
-            # Parse JSON
+            # Parse JSON (adapter has already unwrapped CLI formats and removed markdown)
             task_data = json.loads(text)
+
+            # Validate parsed data structure
+            if not isinstance(task_data, list):
+                raise ValueError(
+                    f"Expected JSON array, got {type(task_data).__name__}. "
+                    f"Response should start with '[' and contain a list of tasks."
+                )
+
+            if len(task_data) == 0:
+                raise ValueError("Task list is empty. Expected at least 1 task.")
 
             # Convert to Task objects
             tasks = []
-            for item in task_data:
+            for idx, item in enumerate(task_data):
+                if not isinstance(item, dict):
+                    print(f"⚠️  Warning: Task {idx} is not a dict, skipping: {item}")
+                    continue
+
+                # Validate required fields
+                if "prompt" not in item or not item["prompt"]:
+                    print(f"⚠️  Warning: Task {idx} missing 'prompt' field, skipping")
+                    continue
+
                 # Store estimated_minutes in metadata if provided
                 metadata = {}
                 if "estimated_minutes" in item:
-                    metadata["estimated_minutes"] = item["estimated_minutes"]
+                    try:
+                        metadata["estimated_minutes"] = int(item["estimated_minutes"])
+                    except (ValueError, TypeError):
+                        print(f"⚠️  Warning: Invalid estimated_minutes for task {idx}")
+
+                # Validate depends_on is a list
+                depends_on = item.get("depends_on", [])
+                if not isinstance(depends_on, list):
+                    print(f"⚠️  Warning: depends_on must be a list for task {idx}, got {type(depends_on)}")
+                    depends_on = []
 
                 task = Task(
                     id=item.get("id", f"task{len(tasks)+1}"),
                     prompt=item.get("prompt", ""),
                     task_type=item.get("task_type", "general"),
                     priority=item.get("priority", 3),
-                    depends_on=item.get("depends_on", []),
+                    depends_on=depends_on,
                     metadata=metadata if metadata else None
                 )
                 tasks.append(task)
+
+            if len(tasks) == 0:
+                raise ValueError("No valid tasks could be parsed from response")
 
             print(f"✓ Decomposed into {len(tasks)} subtasks")
             return tasks
 
         except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse JSON: {e}")
-            print(f"Response: {response_text[:200]}...")
+            print(f"❌ JSON parsing failed: {e.msg}")
+            print(f"   Error at line {e.lineno}, column {e.colno}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
+
+            # Fallback: Create a simple task list from text
+            return self._fallback_parsing(response_text)
+
+        except ValueError as e:
+            print(f"❌ Data validation failed: {e}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
+
+            # Fallback: Create a simple task list from text
+            return self._fallback_parsing(response_text)
+
+        except KeyError as e:
+            print(f"❌ Missing required field: {e}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
+
+            # Fallback: Create a simple task list from text
+            return self._fallback_parsing(response_text)
+
+        except Exception as e:
+            print(f"❌ Unexpected error during task parsing: {type(e).__name__}: {e}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
 
             # Fallback: Create a simple task list from text
             return self._fallback_parsing(response_text)
@@ -250,7 +327,7 @@ Example of CORRECT output format (start immediately with '['):
         print(f"[WARN] Used fallback parser: {len(tasks)} tasks extracted")
         return tasks
 
-    async def analyze_complexity(self, user_input: str) -> Dict:
+    async def analyze_complexity(self, user_input: str) -> Dict[str, Any]:
         """
         Analyze task complexity to decide if decomposition is needed
 
@@ -310,7 +387,7 @@ Only return the JSON object."""
                 "reasoning": f"Analysis failed: {e}"
             }
 
-    def print_task_tree(self, tasks: List[Task]):
+    def print_task_tree(self, tasks: List[Task]) -> None:
         """
         Print task list with dependencies in a tree structure
 
@@ -383,40 +460,117 @@ if __name__ == "__main__":
 
 class MetaAgentCLI:
     """
-    Meta-Agent using Claude CLI for task decomposition
+    Meta-Agent using CLI agents for task decomposition
 
-    Uses claude command directly instead of API.
-    No API key required - only needs Claude CLI subscription.
+    Supports multiple CLI agents: Claude, Codex, or Gemini.
+    No API key required - only needs CLI subscription.
 
     Example:
+        # Use default agent from config (claude by default)
         meta = MetaAgentCLI()
+
+        # Explicitly specify agent
+        meta = MetaAgentCLI(agent_type='codex')
+        meta = MetaAgentCLI(agent_type='gemini')
+
         tasks = await meta.decompose_task("Build a web app")
     """
 
-    def __init__(self):
-        """Initialize Meta-Agent with Claude CLI"""
+    agent_type: str
+    cli_agent: Any  # BaseAgent type
+
+    def __init__(
+        self,
+        agent_type: Optional[str] = None,
+        config_path: Optional[str] = None
+    ) -> None:
+        """
+        Initialize Meta-Agent with configurable CLI agent
+
+        Args:
+            agent_type: Agent to use for decomposition ('claude', 'codex', 'gemini').
+                       If None, reads from agent_config.yaml (default: 'claude')
+            config_path: Path to agent_config.yaml (default: 'src/agent_config.yaml')
+        """
+        import yaml
+        from pathlib import Path
+
+        # Read config if agent_type not specified
+        if agent_type is None:
+            config_file = Path(config_path or 'src/agent_config.yaml')
+            if config_file.exists():
+                try:
+                    with open(config_file, 'r') as f:
+                        config = yaml.safe_load(f)
+                        agent_type = config.get('meta_agent', {}).get('agent_type', 'claude')
+                except Exception as e:
+                    print(f"Warning: Failed to load config: {e}. Using default agent: claude")
+                    agent_type = 'claude'
+            else:
+                agent_type = 'claude'  # Fallback default
+
         # Lazy import to avoid circular dependency
-        from agents import ClaudeCLIAgent
-        self.cli_agent = ClaudeCLIAgent()
+        from src.agents import ClaudeCLIAgent, CodexExecAgent, GeminiAgent
+
+        agent_map = {
+            'claude': ClaudeCLIAgent,
+            'codex': CodexExecAgent,
+            'gemini': GeminiAgent
+        }
+
+        if agent_type not in agent_map:
+            raise ValueError(
+                f"Invalid agent_type: '{agent_type}'. "
+                f"Must be one of: {list(agent_map.keys())}"
+            )
+
+        self.agent_type = agent_type
+        self.cli_agent = agent_map[agent_type]()
+        print(f"[Meta-Agent] Using {agent_type.upper()} CLI for task decomposition")
 
     async def decompose_task(
         self,
         user_input: str,
-        min_tasks: int = 15,
-        max_tasks: int = 20
+        min_tasks: Optional[int] = None,
+        max_tasks: Optional[int] = None,
+        use_dynamic_complexity: bool = True
     ) -> List[Task]:
         """
-        Decompose user's complex task using Claude CLI
+        Decompose user's complex task using CLI with dynamic complexity analysis
 
         Args:
             user_input: User's task description
-            min_tasks: Minimum number of subtasks (default: 15)
-            max_tasks: Maximum number of subtasks (default: 20)
+            min_tasks: Minimum number of subtasks (None = auto-detect from complexity)
+            max_tasks: Maximum number of subtasks (None = auto-detect from complexity)
+            use_dynamic_complexity: Use complexity analyzer to determine task count
 
         Returns:
             List of Task objects with dependencies
         """
         print("[Meta-Agent] analyzing task via CLI...")
+
+        # Dynamic complexity analysis
+        if use_dynamic_complexity and (min_tasks is None or max_tasks is None):
+            analyzer = get_analyzer()
+            complexity = analyzer.analyze(user_input)
+
+            detected_min, detected_max = analyzer.get_task_range(user_input)
+
+            # Use detected values if not explicitly provided
+            if min_tasks is None:
+                min_tasks = detected_min
+            if max_tasks is None:
+                max_tasks = detected_max
+
+            print(f"🔍 Complexity Analysis: {complexity.level.upper()} (score: {complexity.score}/100)")
+            print(f"📊 Recommended subtasks: {complexity.recommended_subtasks} (range: {detected_min}-{detected_max})")
+            print(f"💡 Reasoning: {complexity.reasoning}")
+        else:
+            # Fallback to defaults if dynamic analysis disabled
+            if min_tasks is None:
+                min_tasks = 15
+            if max_tasks is None:
+                max_tasks = 20
 
         # Build decomposition prompt
         prompt = self._build_decomposition_prompt(user_input, min_tasks, max_tasks)
@@ -546,54 +700,97 @@ Example of CORRECT output format (start immediately with '['):
         """
         Parse AI response into Task objects
 
-        Handles both clean JSON and markdown-wrapped JSON responses
+        NOTE: CLI format unwrapping (Claude/Gemini wrappers) and markdown removal
+        is now handled by CLIOutputAdapter in agents.py, so we expect clean JSON here.
         """
         try:
             # Clean up response text
             text = response_text.strip()
 
-            # First, try to extract from Claude CLI wrapper format
-            # Claude CLI with --output-format json returns: {"type":"result","result":"..."}
-            try:
-                wrapper = json.loads(text)
-                if isinstance(wrapper, dict) and 'result' in wrapper:
-                    text = wrapper['result']
-            except:
-                pass  # Not a wrapper format, continue with original text
-
-            # Remove markdown code blocks if present
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0].strip()
-
-            # Parse JSON
+            # Parse JSON (adapter has already unwrapped CLI formats and removed markdown)
             task_data = json.loads(text)
+
+            # Validate parsed data structure
+            if not isinstance(task_data, list):
+                raise ValueError(
+                    f"Expected JSON array, got {type(task_data).__name__}. "
+                    f"Response should start with '[' and contain a list of tasks."
+                )
+
+            if len(task_data) == 0:
+                raise ValueError("Task list is empty. Expected at least 1 task.")
 
             # Convert to Task objects
             tasks = []
-            for item in task_data:
+            for idx, item in enumerate(task_data):
+                if not isinstance(item, dict):
+                    print(f"⚠️  Warning: Task {idx} is not a dict, skipping: {item}")
+                    continue
+
+                # Validate required fields
+                if "prompt" not in item or not item["prompt"]:
+                    print(f"⚠️  Warning: Task {idx} missing 'prompt' field, skipping")
+                    continue
+
                 # Store estimated_minutes in metadata if provided
                 metadata = {}
                 if "estimated_minutes" in item:
-                    metadata["estimated_minutes"] = item["estimated_minutes"]
+                    try:
+                        metadata["estimated_minutes"] = int(item["estimated_minutes"])
+                    except (ValueError, TypeError):
+                        print(f"⚠️  Warning: Invalid estimated_minutes for task {idx}")
+
+                # Validate depends_on is a list
+                depends_on = item.get("depends_on", [])
+                if not isinstance(depends_on, list):
+                    print(f"⚠️  Warning: depends_on must be a list for task {idx}, got {type(depends_on)}")
+                    depends_on = []
 
                 task = Task(
                     id=item.get("id", f"task{len(tasks)+1}"),
                     prompt=item.get("prompt", ""),
                     task_type=item.get("task_type", "general"),
                     priority=item.get("priority", 3),
-                    depends_on=item.get("depends_on", []),
+                    depends_on=depends_on,
                     metadata=metadata if metadata else None
                 )
                 tasks.append(task)
+
+            if len(tasks) == 0:
+                raise ValueError("No valid tasks could be parsed from response")
 
             print(f"✓ Decomposed into {len(tasks)} subtasks")
             return tasks
 
         except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse JSON: {e}")
-            print(f"Response: {response_text[:200]}...")
+            print(f"❌ JSON parsing failed: {e.msg}")
+            print(f"   Error at line {e.lineno}, column {e.colno}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
+
+            # Fallback: Create a simple task list from text
+            return self._fallback_parsing(response_text)
+
+        except ValueError as e:
+            print(f"❌ Data validation failed: {e}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
+
+            # Fallback: Create a simple task list from text
+            return self._fallback_parsing(response_text)
+
+        except KeyError as e:
+            print(f"❌ Missing required field: {e}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
+
+            # Fallback: Create a simple task list from text
+            return self._fallback_parsing(response_text)
+
+        except Exception as e:
+            print(f"❌ Unexpected error during task parsing: {type(e).__name__}: {e}")
+            print(f"   Response preview: {response_text[:200]}...")
+            print(f"   Attempting fallback parsing...")
 
             # Fallback: Create a simple task list from text
             return self._fallback_parsing(response_text)
@@ -655,7 +852,7 @@ Example of CORRECT output format (start immediately with '['):
             )
         ]
 
-    def print_task_tree(self, tasks: List[Task]):
+    def print_task_tree(self, tasks: List[Task]) -> None:
         """
         Print task dependency tree
 

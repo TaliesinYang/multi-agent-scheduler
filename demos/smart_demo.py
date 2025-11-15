@@ -56,7 +56,7 @@ class SmartSchedulerDemo:
             print("🔧 Setting up CLI agents (100% CLI, no API keys required)")
 
             # Use CLI version of Meta-Agent (no API key needed)
-            from meta_agent import MetaAgentCLI
+            from src.meta_agent import MetaAgentCLI
             self.meta_agent = MetaAgentCLI()
             print("✓ Meta-Agent using Claude CLI for task decomposition")
 
@@ -72,7 +72,7 @@ class SmartSchedulerDemo:
 
             # Add Codex CLI
             try:
-                from agents import CodexCLIAgent
+                from src.agents import CodexCLIAgent
                 agents['codex'] = CodexCLIAgent()
                 print("✓ Codex CLI agent added")
             except Exception as e:

@@ -1,0 +1,98 @@
+# Multi-Agent Scheduler 配置文件示例
+# 复制此文件为 config.yaml 并根据需要修改
+
+# Agent 配置
+agents:
+  # Claude API
+  claude:
+    enabled: true                           # 是否启用
+    model: "claude-sonnet-4-5-20250929"    # 模型名称
+    max_tokens: 4000                        # 最大输出token数
+    temperature: 0.7                        # 温度（0-1）
+    timeout: 120                            # 超时时间（秒）
+
+  # OpenAI API
+  openai:
+    enabled: false                          # 默认关闭，需要时启用
+    model: "gpt-4"
+    max_tokens: 4000
+    temperature: 0.7
+    timeout: 120
+
+  # Gemini (CLI模式，推荐使用，更省钱)
+  gemini:
+    enabled: true
+    use_cli: true                           # 使用CLI而非API
+    model: "gemini-2.0-flash-exp"
+    timeout: 120
+
+  # Mock Agent（测试用）
+  mock:
+    enabled: true                           # 始终可用
+    response_delay: 0.5                     # 模拟响应延迟（秒）
+
+# 调度器配置
+scheduler:
+  max_concurrent_tasks: 10                  # 最大并发任务数
+  batch_size: 5                             # 每批次任务数
+  retry_attempts: 3                         # 失败重试次数
+  timeout_seconds: 120                      # 任务超时时间
+  execution_mode: "auto"                    # 执行模式: auto/parallel/serial/hybrid
+
+  # Agent 选择策略
+  agent_selection_strategy:
+    coding: "claude"                        # 代码任务
+    simple: "gemini"                        # 简单任务
+    analysis: "openai"                      # 分析任务
+    general: "claude"                       # 通用任务（默认）
+
+# 检查点配置
+checkpoint:
+  enabled: true                             # 是否启用检查点
+  checkpoint_dir: "./checkpoints"           # 检查点目录
+  checkpoint_interval: 10                   # 检查点间隔（任务数）
+  max_checkpoints: 100                      # 最大检查点数量
+
+# 网络配置
+network:
+  request_timeout: 60                       # API请求超时（秒）
+  connect_timeout: 10                       # 连接超时（秒）
+  retry_delay: 2                            # 重试延迟（秒）
+  max_retries: 3                            # 最大重试次数
+
+# 日志配置
+logging:
+  level: "INFO"                             # 日志级别: DEBUG/INFO/WARNING/ERROR
+  log_file: "scheduler.log"                 # 日志文件路径
+  log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  enable_console: true                      # 是否输出到控制台
+
+# 监控配置
+monitoring:
+  enabled: true                             # 是否启用监控
+  health_check_port: 8000                   # 健康检查端口
+  metrics_enabled: true                     # 是否启用 Prometheus 指标
+  tracing_enabled: true                     # 是否启用分布式追踪
+
+# 成本优化配置（可选）
+cost_optimization:
+  enabled: true                             # 是否启用成本优化
+  prefer_free_agents: true                  # 优先使用免费 Agent（如 Gemini CLI）
+  use_cheaper_models: false                 # 使用更便宜的模型
+  model_downgrade_rules:                    # 模型降级规则
+    claude: "claude-haiku"                  # Claude 降级到 Haiku
+    openai: "gpt-3.5-turbo"                 # OpenAI 降级到 3.5
+
+# 性能优化配置（可选）
+performance:
+  memory_limit_mb: 2048                     # 内存限制（MB）
+  enable_caching: true                      # 启用缓存
+  cache_ttl_seconds: 3600                   # 缓存过期时间（秒）
+  enable_streaming: true                    # 启用流式响应
+
+# 开发模式配置
+development:
+  debug: false                              # 调试模式
+  mock_mode: false                          # 强制使用 Mock Agent
+  log_api_calls: false                      # 记录所有 API 调用
+  save_execution_history: true              # 保存执行历史

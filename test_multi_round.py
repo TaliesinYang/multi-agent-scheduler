@@ -35,7 +35,7 @@ OS_TASKS = [
     }
 ]
 
-DB_TASKS = [
+DB_TASKS_MYSQL = [
     {
         "id": "db_1",
         "prompt": "Show all tables in the database. Use execute_sql to run 'SHOW TABLES;'. Then commit your final answer with the table list.",
@@ -48,10 +48,53 @@ DB_TASKS = [
     }
 ]
 
+DB_TASKS_SQLITE = [
+    {
+        "id": "db_1",
+        "prompt": "Show all tables in the database. Use execute_sql to run 'SELECT name FROM sqlite_master WHERE type=\"table\";'. Then commit your final answer with the table list.",
+        "expected_tool": "execute_sql"
+    },
+    {
+        "id": "db_2",
+        "prompt": "Count the number of users in the users table. Use execute_sql to run 'SELECT COUNT(*) as user_count FROM users;'. Commit the count.",
+        "expected_tool": "execute_sql"
+    }
+]
 
-async def test_multi_round_execution():
+
+async def setup_test_database(db_executor):
+    """Create test database with sample data"""
+    print("  - Creating test table and sample data...")
+
+    # Create users table
+    await db_executor.execute_sql("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            age INTEGER NOT NULL,
+            email TEXT
+        )
+    """)
+
+    # Insert sample data
+    await db_executor.execute_sql("""
+        INSERT OR REPLACE INTO users (id, name, age, email) VALUES
+        (1, 'Alice', 25, 'alice@example.com'),
+        (2, 'Bob', 30, 'bob@example.com'),
+        (3, 'Charlie', 22, 'charlie@example.com'),
+        (4, 'David', 35, 'david@example.com'),
+        (5, 'Eve', 28, 'eve@example.com')
+    """)
+
+    print("  - Test database ready (5 users)")
+
+
+async def test_multi_round_execution(db_type="sqlite"):
     """
     Test multi-round dialogue with 5 simple tasks
+
+    Args:
+        db_type: "sqlite" or "mysql" (default: sqlite for easier testing)
 
     Success criteria:
     - All tasks should complete
@@ -71,20 +114,36 @@ async def test_multi_round_execution():
 
     # Initialize executors
     print("  - Starting Docker container (ubuntu:22.04)...")
-    await registry.initialize(
-        docker_image="ubuntu:22.04",
-        db_type="mysql",
-        host="localhost",
-        user="root",
-        password="",  # Update with your MySQL password
-        database="test"  # Update with your database name
-    )
+
+    if db_type == "sqlite":
+        print("  - Using SQLite database (test_agentbench.db)...")
+        await registry.initialize(
+            docker_image="ubuntu:22.04",
+            db_type="sqlite",
+            database="test_agentbench.db"
+        )
+
+        # Setup test database
+        await setup_test_database(registry.database_executor)
+        db_tasks = DB_TASKS_SQLITE
+
+    else:
+        print("  - Using MySQL database...")
+        await registry.initialize(
+            docker_image="ubuntu:22.04",
+            db_type="mysql",
+            host="localhost",
+            user="root",
+            password="",  # Update with your MySQL password
+            database="test"  # Update with your database name
+        )
+        db_tasks = DB_TASKS_MYSQL
 
     print("[3/4] Creating multi-round executor...")
     executor = MultiRoundExecutor(agent=agent, tool_registry=registry)
 
     # Combine all tasks
-    all_tasks = OS_TASKS + DB_TASKS
+    all_tasks = OS_TASKS + db_tasks
     print(f"\n[4/4] Executing {len(all_tasks)} tasks (3 OS + 2 DB)...\n")
 
     # Execute tasks
@@ -246,6 +305,12 @@ if __name__ == "__main__":
         default="full",
         help="Test mode (simple: 1 task, full: 5 tasks)"
     )
+    parser.add_argument(
+        "--db",
+        choices=["sqlite", "mysql"],
+        default="sqlite",
+        help="Database type (default: sqlite)"
+    )
 
     args = parser.parse_args()
 
@@ -253,7 +318,7 @@ if __name__ == "__main__":
         if args.mode == "simple":
             success = asyncio.run(test_simple_example())
         else:
-            success = asyncio.run(test_multi_round_execution())
+            success = asyncio.run(test_multi_round_execution(db_type=args.db))
 
         sys.exit(0 if success else 1)
 

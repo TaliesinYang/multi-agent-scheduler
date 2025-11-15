@@ -6,14 +6,35 @@ Tests basic agent-tool interaction without full AgentBench setup.
 
 import asyncio
 import sys
+import os
 from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+# Load environment variables from .env if available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, use system env vars
+
 from agents import ClaudeAgent
 from adapters import ToolRegistry
 from orchestration import MultiRoundExecutor
+
+
+def get_api_key() -> str:
+    """Get Anthropic API key from environment"""
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        print("\n❌ ANTHROPIC_API_KEY not found!")
+        print("Please set it:")
+        print("  export ANTHROPIC_API_KEY='your-key-here'")
+        print("Or create a .env file with:")
+        print("  ANTHROPIC_API_KEY=your-key-here\n")
+        sys.exit(1)
+    return api_key
 
 
 async def quick_test():
@@ -32,7 +53,8 @@ async def quick_test():
 
     # Initialize
     print("[1/3] Initializing agent and tools...")
-    agent = ClaudeAgent()
+    api_key = get_api_key()
+    agent = ClaudeAgent(api_key=api_key)
     registry = ToolRegistry()
 
     print("[2/3] Starting Docker container...")

@@ -6,14 +6,35 @@ Day 3 Validation: Test 5 simple tasks (3 OS + 2 DB) to achieve >80% success rate
 
 import asyncio
 import sys
+import os
 from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+# Load environment variables from .env if available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, use system env vars
+
 from agents import ClaudeAgent
 from adapters import ToolRegistry
 from orchestration import MultiRoundExecutor
+
+
+def get_api_key() -> str:
+    """Get Anthropic API key from environment"""
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        print("\n❌ ANTHROPIC_API_KEY not found!")
+        print("Please set it:")
+        print("  export ANTHROPIC_API_KEY='your-key-here'")
+        print("Or create a .env file with:")
+        print("  ANTHROPIC_API_KEY=your-key-here\n")
+        sys.exit(1)
+    return api_key
 
 
 # Test tasks
@@ -107,7 +128,8 @@ async def test_multi_round_execution(db_type="sqlite"):
 
     # Initialize components
     print("\n[1/4] Initializing Claude agent...")
-    agent = ClaudeAgent()
+    api_key = get_api_key()
+    agent = ClaudeAgent(api_key=api_key)
 
     print("[2/4] Initializing tool registry...")
     registry = ToolRegistry()
@@ -271,7 +293,8 @@ async def test_simple_example():
     print("="*80)
 
     # Initialize
-    agent = ClaudeAgent()
+    api_key = get_api_key()
+    agent = ClaudeAgent(api_key=api_key)
     registry = ToolRegistry()
 
     await registry.initialize(docker_image="ubuntu:22.04")

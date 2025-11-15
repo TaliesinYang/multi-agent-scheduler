@@ -10,10 +10,11 @@ import sys
 import time
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+# Add adapters directly to path to bypass __init__.py
+sys.path.insert(0, str(Path(__file__).parent / "src" / "adapters"))
 
-from adapters.cli_tool_executor import CLIToolExecutor
+# Direct import to avoid Docker dependencies in __init__.py
+from cli_tool_executor import CLIToolExecutor
 
 
 # Test tasks (simplified for CLI mode)

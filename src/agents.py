@@ -1,16 +1,60 @@
 """
 Multi-Agent System - AI Agent Wrappers
 Unified interface supporting Claude, OpenAI, and Gemini
+
+Extended with Tool Calling support for AgentBench integration
 """
 
 import asyncio
 import subprocess
 import time
 import shlex
-from typing import Dict, Optional, Any, AsyncIterator
+from typing import Dict, Optional, Any, AsyncIterator, List
+from dataclasses import dataclass, field
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 from src.cli_adapters import CLIOutputAdapter
+
+
+@dataclass
+class ToolCall:
+    """Represents a tool call request from an AI agent"""
+    id: str
+    name: str
+    arguments: Dict[str, Any]
+
+
+@dataclass
+class InferenceResult:
+    """Unified result format for agent inference with Tool Calling support"""
+    content: str
+    tool_calls: List[ToolCall] = field(default_factory=list)
+    finish_reason: str = "stop"  # "stop", "tool_calls", "length", "timeout"
+    total_rounds: int = 1
+
+    # Legacy compatibility fields (for backward compatibility)
+    agent: Optional[str] = None
+    result: Optional[str] = None  # Alias for content
+    latency: float = 0.0
+    tokens: int = 0
+    success: bool = True
+    error: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format (for backward compatibility)"""
+        return {
+            "agent": self.agent or "Unknown",
+            "result": self.content,
+            "latency": self.latency,
+            "tokens": self.tokens,
+            "success": self.success,
+            "tool_calls": [
+                {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
+                for tc in self.tool_calls
+            ],
+            "finish_reason": self.finish_reason,
+            "total_rounds": self.total_rounds
+        }
 
 
 class BaseAgent:
@@ -36,15 +80,29 @@ class BaseAgent:
         self.total_tokens = 0
         self.workspace = workspace  # Working directory for file operations
 
-    async def call(self, prompt: str) -> Dict[str, Any]:
+    async def call(
+        self,
+        prompt: str,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        max_rounds: int = 1,
+        **kwargs
+    ) -> Dict[str, Any]:
         """
         Call AI model and return result
 
         Args:
-            prompt: Input prompt
+            prompt: Input prompt (can be string or list of messages)
+            tools: Optional list of tool definitions for Tool Calling
+            max_rounds: Maximum rounds for multi-round dialogue (default: 1)
+            **kwargs: Additional arguments (max_tokens, temperature, etc.)
 
         Returns:
             Dict containing: agent name, result text, latency, token count
+            If tools are provided and agent supports it, may include tool_calls
+
+        Note:
+            Subclasses can override to support Tool Calling.
+            Default implementation ignores tools and max_rounds for backward compatibility.
         """
         raise NotImplementedError("Subclass must implement call() method")
 
@@ -247,17 +305,49 @@ class ClaudeAgent(BaseAgent):
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = model
 
-    async def call(self, prompt: str, max_tokens: int = 1024) -> Dict[str, Any]:
-        """Call Claude API"""
+    async def call(
+        self,
+        prompt: str,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        max_rounds: int = 1,
+        max_tokens: int = 4096,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Call Claude API with optional Tool Calling support
+
+        Args:
+            prompt: Input prompt (string or list of messages)
+            tools: Optional tool definitions for Tool Calling
+            max_rounds: Maximum rounds (ignored, kept for interface compatibility)
+            max_tokens: Maximum tokens to generate
+
+        Returns:
+            Dict with agent name, result, latency, tokens, and tool_calls if applicable
+        """
         async with self.semaphore:
             start_time = time.time()
 
             try:
-                response = await self.client.messages.create(
-                    model=self.model,
-                    max_tokens=max_tokens,
-                    messages=[{"role": "user", "content": prompt}]
-                )
+                # Convert prompt to messages format
+                if isinstance(prompt, str):
+                    messages = [{"role": "user", "content": prompt}]
+                else:
+                    messages = prompt
+
+                # Build API request parameters
+                api_params = {
+                    "model": self.model,
+                    "max_tokens": max_tokens,
+                    "messages": messages
+                }
+
+                # Add tools if provided
+                if tools:
+                    api_params["tools"] = tools
+
+                # Call Claude API
+                response = await self.client.messages.create(**api_params)
 
                 end_time = time.time()
                 latency = end_time - start_time
@@ -267,13 +357,40 @@ class ClaudeAgent(BaseAgent):
                 self.total_latency += latency
                 self.total_tokens += response.usage.total_tokens
 
-                return {
+                # Extract result content
+                content_text = ""
+                tool_calls_list = []
+
+                for block in response.content:
+                    if block.type == "text":
+                        content_text += block.text
+                    elif block.type == "tool_use":
+                        tool_calls_list.append(
+                            ToolCall(
+                                id=block.id,
+                                name=block.name,
+                                arguments=block.input
+                            )
+                        )
+
+                # Return result (backward compatible format)
+                result = {
                     "agent": self.name,
-                    "result": response.content[0].text,
+                    "result": content_text,
                     "latency": latency,
                     "tokens": response.usage.total_tokens,
-                    "success": True
+                    "success": True,
+                    "finish_reason": response.stop_reason
                 }
+
+                # Add tool calls if any
+                if tool_calls_list:
+                    result["tool_calls"] = [
+                        {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
+                        for tc in tool_calls_list
+                    ]
+
+                return result
 
             except asyncio.TimeoutError:
                 end_time = time.time()

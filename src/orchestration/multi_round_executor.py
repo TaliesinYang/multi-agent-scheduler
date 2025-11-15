@@ -5,8 +5,8 @@ Implements agent-tool interaction loop for complex tasks requiring multiple step
 """
 
 from typing import Dict, Any, List, Optional
-from ..agents import BaseAgent
-from ..adapters import ToolRegistry, AGENTBENCH_TOOLS
+from agents import BaseAgent
+from adapters import ToolRegistry, AGENTBENCH_TOOLS
 
 
 class MultiRoundExecutor:

@@ -1,0 +1,147 @@
+{
+  "metadata": {
+    "version": "1.0-eval",
+    "description": "10-task evaluation benchmark for Hybrid Architecture testing",
+    "total_groups": 4,
+    "total_tasks": 10,
+    "purpose": "Minimal test set to validate dependency injection in real CLI execution",
+    "selected_groups": [
+      "os_user_analysis (3 tasks)",
+      "db_product_sales (2 tasks)",
+      "os_process_analysis (2 tasks)",
+      "db_user_orders (3 tasks)"
+    ]
+  },
+  "groups": [
+    {
+      "group_id": "os_user_analysis",
+      "description": "Extract users and analyze their files",
+      "tasks": [
+        {
+          "id": "os_dep_1a",
+          "description": "List all users in /etc/passwd and extract their usernames",
+          "prompt": "Read /etc/passwd and extract all usernames (first field before colon). Return them as a comma-separated list. When done, say 'FINAL_ANSWER: ' followed by the usernames and count.",
+          "output_schema": {
+            "users": "List[str]",
+            "user_count": "int"
+          },
+          "depends_on": [],
+          "type": "os"
+        },
+        {
+          "id": "os_dep_1b",
+          "description": "Count files in the home directory of the first user",
+          "prompt": "Count the total number of files (including hidden files) in the home directory of: {target_user}. When done, say 'FINAL_ANSWER: ' followed by the file count.",
+          "depends_on": ["os_dep_1a"],
+          "input_mapping": {
+            "target_user": "os_dep_1a.users[0]"
+          },
+          "type": "os"
+        },
+        {
+          "id": "os_dep_1c",
+          "description": "Report if the user has more than 10 files",
+          "prompt": "Based on the file count: {file_count}, determine if this exceeds 10 files. Return 'yes' or 'no'. When done, say 'FINAL_ANSWER: ' followed by yes or no.",
+          "depends_on": ["os_dep_1b"],
+          "input_mapping": {
+            "file_count": "os_dep_1b.count"
+          },
+          "type": "os"
+        }
+      ]
+    },
+    {
+      "group_id": "db_product_sales",
+      "description": "Find high-sales products and analyze their ratings",
+      "tasks": [
+        {
+          "id": "db_dep_1a",
+          "description": "Find products with sales greater than 1000",
+          "prompt": "SELECT product_id, product_name FROM products WHERE sales > 1000. Return the product IDs as a comma-separated list. When done, say 'FINAL_ANSWER: product_ids: [list of IDs]'.",
+          "output_schema": {
+            "product_ids": "List[int]",
+            "product_count": "int"
+          },
+          "depends_on": [],
+          "type": "database"
+        },
+        {
+          "id": "db_dep_1b",
+          "description": "Calculate average rating for these products",
+          "prompt": "SELECT AVG(rating) as avg_rating FROM reviews WHERE product_id IN ({product_ids}). Return the average rating. When done, say 'FINAL_ANSWER: ' followed by the average rating.",
+          "depends_on": ["db_dep_1a"],
+          "input_mapping": {
+            "product_ids": "db_dep_1a.product_ids"
+          },
+          "type": "database"
+        }
+      ]
+    },
+    {
+      "group_id": "os_process_analysis",
+      "description": "Find process and analyze its resource usage",
+      "tasks": [
+        {
+          "id": "os_dep_2a",
+          "description": "Find PID of nginx process",
+          "prompt": "Use 'ps aux | grep nginx' to find the process ID (PID) of nginx. Return just the numeric PID. When done, say 'FINAL_ANSWER: ' followed by the PID.",
+          "output_schema": {
+            "pid": "int"
+          },
+          "depends_on": [],
+          "type": "os"
+        },
+        {
+          "id": "os_dep_2b",
+          "description": "Get memory usage of the process",
+          "prompt": "Use 'ps -p {pid} -o %mem' to get memory usage percentage of process {pid}. Return the percentage value. When done, say 'FINAL_ANSWER: ' followed by the memory percentage.",
+          "depends_on": ["os_dep_2a"],
+          "input_mapping": {
+            "pid": "os_dep_2a.pid"
+          },
+          "type": "os"
+        }
+      ]
+    },
+    {
+      "group_id": "db_user_orders",
+      "description": "Find user's orders and calculate total",
+      "tasks": [
+        {
+          "id": "db_dep_2a",
+          "description": "Find user ID by email",
+          "prompt": "SELECT user_id FROM users WHERE email = 'alice@example.com'. Return the user_id. When done, say 'FINAL_ANSWER: ' followed by the user_id.",
+          "output_schema": {
+            "user_id": "int"
+          },
+          "depends_on": [],
+          "type": "database"
+        },
+        {
+          "id": "db_dep_2b",
+          "description": "Get all orders for this user",
+          "prompt": "SELECT order_id, amount FROM orders WHERE user_id = {user_id}. Return order IDs and total amount. When done, say 'FINAL_ANSWER: ' followed by the order IDs and total.",
+          "depends_on": ["db_dep_2a"],
+          "input_mapping": {
+            "user_id": "db_dep_2a.user_id"
+          },
+          "output_schema": {
+            "order_ids": "List[int]",
+            "total_amount": "float"
+          },
+          "type": "database"
+        },
+        {
+          "id": "db_dep_2c",
+          "description": "Find items in these orders",
+          "prompt": "SELECT item_name FROM order_items WHERE order_id IN ({order_ids}). Return item names. When done, say 'FINAL_ANSWER: ' followed by the item names.",
+          "depends_on": ["db_dep_2b"],
+          "input_mapping": {
+            "order_ids": "db_dep_2b.order_ids"
+          },
+          "type": "database"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "mode": "hybrid",
+  "timestamp": "2025-11-16T13:31:52.078027",
+  "total_time": 381.7772319316864,
+  "batch_count": 3,
+  "statistics": {
+    "total_tasks": 10,
+    "completed_tasks": 10,
+    "failed_tasks": 0,
+    "success_rate": 100.0,
+    "avg_latency": 113.2633686542511,
+    "total_execution_time": 381.7772319316864
+  },
+  "task_results": [
+    {
+      "task_id": "os_dep_1a",
+      "success": true,
+      "latency": 77.8860924243927,
+      "output_length": 203,
+      "has_parsed_data": false,
+      "parsed_data_keys": [],
+      "error": null
+    },
+    {
+      "task_id": "db_dep_1a",
+      "success": true,
+      "latency": 108.30124855041504,
+      "output_length": 15,
+      "has_parsed_data": true,
+      "parsed_data_keys": [
+        "items"
+      ],
+      "error": null
+    },
+    {
+      "task_id": "os_dep_2a",
+      "success": true,
+      "latency": 109.08317494392395,
+      "output_length": 3,
+      "has_parsed_data": false,
+      "parsed_data_keys": [],
+      "error": null
+    },
+    {
+      "task_id": "db_dep_2a",
+      "success": true,
+      "latency": 110.6265914440155,
+      "output_length": 1,
+      "has_parsed_data": false,
+      "parsed_data_keys": [],
+      "error": null
+    },
+    {
+      "task_id": "os_dep_1b",
+      "success": true,
+      "latency": 106.55231952667236,
+      "output_length": 1,
+      "has_parsed_data": false,
+      "parsed_data_keys": [],
+      "error": null
+    },
+    {
+      "task_id": "db_dep_1b",
+      "success": true,
+      "latency": 140.41100358963013,
+      "output_length": 4,
+      "has_parsed_data": true,
+      "parsed_data_keys": [
+        "items"
+      ],
+      "error": null
+    },
+    {
+      "task_id": "os_dep_2b",
+      "success": true,
+      "latency": 113.51704263687134,
+      "output_length": 39,
+      "has_parsed_data": true,
+      "parsed_data_keys": [
+        "usage"
+      ],
+      "error": null
+    },
+    {
+      "task_id": "db_dep_2b",
+      "success": true,
+      "latency": 165.35552644729614,
+      "output_length": 39,
+      "has_parsed_data": true,
+      "parsed_data_keys": [
+        "IDs",
+        "amount"
+      ],
+      "error": null
+    },
+    {
+      "task_id": "os_dep_1c",
+      "success": true,
+      "latency": 95.11359310150146,
+      "output_length": 3,
+      "has_parsed_data": false,
+      "parsed_data_keys": [],
+      "error": null
+    },
+    {
+      "task_id": "db_dep_2c",
+      "success": true,
+      "latency": 105.78709387779236,
+      "output_length": 52,
+      "has_parsed_data": false,
+      "parsed_data_keys": [],
+      "error": null
+    }
+  ],
+  "metadata": {
+    "groups_tested": [
+      "os_user_analysis",
+      "db_product_sales",
+      "os_process_analysis",
+      "db_user_orders"
+    ],
+    "dependency_injection_enabled": true,
+    "data_extraction_enabled": true,
+    "meta_agent_enabled": true
+  }
+}

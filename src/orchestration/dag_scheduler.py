@@ -41,8 +41,10 @@ if TYPE_CHECKING:
 # Use absolute import for compatibility
 try:
     from .executor import ToolExecutor, TaskResult
+    from .dependency_injector import DependencyInjector
 except ImportError:
     from executor import ToolExecutor, TaskResult
+    from dependency_injector import DependencyInjector
 
 
 @dataclass
@@ -55,6 +57,7 @@ class DAGResult:
         task_count: Number of tasks executed
         batch_count: Number of batches executed
         results: List of TaskResult objects
+        task_results: Dict mapping task_id -> TaskResult (for dependency injection)
         success_count: Number of successful tasks
         failed_count: Number of failed tasks
         metadata: Additional execution metadata
@@ -63,14 +66,38 @@ class DAGResult:
     task_count: int
     batch_count: int
     results: List[TaskResult]
+    task_results: Dict[str, TaskResult] = field(default_factory=dict)
     success_count: int = 0
     failed_count: int = 0
     metadata: Dict[str, any] = field(default_factory=dict)
 
+    @property
+    def success(self) -> bool:
+        """Whether all tasks succeeded"""
+        return self.failed_count == 0
+
+    @property
+    def total_tasks(self) -> int:
+        """Total number of tasks (alias for task_count)"""
+        return self.task_count
+
+    @property
+    def completed_tasks(self) -> int:
+        """Number of completed tasks (alias for success_count)"""
+        return self.success_count
+
+    @property
+    def failed_tasks(self) -> int:
+        """Number of failed tasks (alias for failed_count)"""
+        return self.failed_count
+
     def __post_init__(self):
-        """Calculate success/failure counts"""
+        """Calculate success/failure counts and task_results mapping"""
         self.success_count = sum(1 for r in self.results if r.success)
         self.failed_count = self.task_count - self.success_count
+
+        # Build task_id -> TaskResult mapping
+        self.task_results = {r.task_id: r for r in self.results}
 
         if "timestamp" not in self.metadata:
             self.metadata["timestamp"] = datetime.now().isoformat()
@@ -199,7 +226,9 @@ class DAGScheduler:
     async def execute_dag(
         self,
         tasks: List['Task'],
-        agent_mapping: Optional[Dict[str, str]] = None
+        agent_mapping: Optional[Dict[str, str]] = None,
+        input_mappings: Optional[Dict[str, Dict[str, str]]] = None,
+        extract_data: bool = False
     ) -> DAGResult:
         """
         Execute tasks with dependencies using DAG scheduling
@@ -208,6 +237,11 @@ class DAGScheduler:
             tasks: List of tasks with depends_on relationships
             agent_mapping: Optional task_id -> agent_name mapping
                           Falls back to default_agent if not specified
+            input_mappings: Optional dependency injection mappings
+                           Dict[task_id, Dict[param_name, path_expression]]
+                           Example: {"task_b": {"user": "task_a.users[0]"}}
+            extract_data: Whether to extract structured data from task outputs
+                         (enables dependency injection for downstream tasks)
 
         Returns:
             DAGResult with execution details
@@ -220,14 +254,27 @@ class DAGScheduler:
             ... ]
             >>> result = await scheduler.execute_dag(tasks)
             >>> # Executes in 3 batches: install -> config -> start
+            >>>
+            >>> # With dependency injection:
+            >>> input_mappings = {
+            ...     "config_pkg": {"pkg_name": "install_pkg.package_name"}
+            ... }
+            >>> result = await scheduler.execute_dag(
+            ...     tasks, input_mappings=input_mappings, extract_data=True
+            ... )
         """
         if not tasks:
             raise ValueError("No tasks provided")
 
         if self.verbose:
             print(f"\n🔀 [DAG SCHEDULER] Executing {len(tasks)} tasks with dependencies")
+            if input_mappings:
+                print(f"  🔗 Dependency injection enabled for {len(input_mappings)} tasks")
 
         start_time = time.time()
+
+        # Create dependency injector if input_mappings provided
+        injector = DependencyInjector(verbose=self.verbose) if input_mappings else None
 
         # Perform topological sort
         try:
@@ -252,6 +299,7 @@ class DAGScheduler:
 
         # Execute batches sequentially, tasks within batch in parallel
         all_results: List[TaskResult] = []
+        completed_results: Dict[str, TaskResult] = {}  # For dependency injection
 
         for batch_idx, batch in enumerate(batches, 1):
             if self.verbose:
@@ -261,12 +309,24 @@ class DAGScheduler:
 
             # Execute tasks in parallel using asyncio.gather
             batch_results = await asyncio.gather(*[
-                self._execute_single_task(task, agent_mapping, batch_idx)
+                self._execute_single_task(
+                    task,
+                    agent_mapping,
+                    batch_idx,
+                    completed_results,  # Pass completed results for dependency injection
+                    injector,
+                    input_mappings,
+                    extract_data
+                )
                 for task in batch
             ])
 
             batch_time = time.time() - batch_start
             all_results.extend(batch_results)
+
+            # Store results for next batch (dependency injection)
+            for result in batch_results:
+                completed_results[result.task_id] = result
 
             # Print batch results
             if self.verbose:
@@ -295,7 +355,11 @@ class DAGScheduler:
         self,
         task: 'Task',
         agent_mapping: Optional[Dict[str, str]],
-        batch: int
+        batch: int,
+        completed_results: Dict[str, TaskResult],
+        injector: Optional[DependencyInjector],
+        input_mappings: Optional[Dict[str, Dict[str, str]]],
+        extract_data: bool
     ) -> TaskResult:
         """
         Execute a single task using the executor
@@ -304,6 +368,10 @@ class DAGScheduler:
             task: Task to execute
             agent_mapping: Optional task_id -> agent_name mapping
             batch: Batch number (for logging)
+            completed_results: Results from previously completed tasks (for dependency injection)
+            injector: DependencyInjector instance (if dependency injection enabled)
+            input_mappings: Input mapping specifications
+            extract_data: Whether to extract structured data from output
 
         Returns:
             TaskResult from executor
@@ -313,15 +381,40 @@ class DAGScheduler:
         if agent_mapping and task.id in agent_mapping:
             agent_name = agent_mapping[task.id]
 
+        # Get task prompt (possibly enhanced with dependency injection)
+        task_prompt = task.prompt
+
+        # Apply dependency injection if needed
+        if injector and input_mappings and task.id in input_mappings:
+            # Get relevant upstream results
+            upstream_task_ids = task.depends_on
+            upstream_results = {
+                tid: completed_results[tid]
+                for tid in upstream_task_ids
+                if tid in completed_results
+            }
+
+            if upstream_results:
+                try:
+                    task_prompt = injector.inject_dependencies(
+                        task=task,
+                        upstream_results=upstream_results,
+                        input_mapping=input_mappings[task.id]
+                    )
+                except Exception as e:
+                    if self.verbose:
+                        print(f"      ⚠️  Dependency injection failed for {task.id}: {e}")
+
         if self.verbose:
             print(f"      [{agent_name}] {task.id}: {task.prompt[:50]}...")
 
         # Execute via executor
         try:
             result = await self.executor.execute(
-                task_prompt=task.prompt,
+                task_prompt=task_prompt,  # Use enhanced prompt (with dependency injection)
                 agent_name=agent_name,
-                task_id=task.id
+                task_id=task.id,
+                extract_data=extract_data  # Enable data extraction if requested
             )
 
             if self.verbose:

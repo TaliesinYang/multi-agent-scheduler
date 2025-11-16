@@ -218,6 +218,12 @@ class APIExecutor(ToolExecutor):
         Attempts to parse JSON from final_answer or tool results.
         Used for dependency injection between tasks.
 
+        Extraction strategies (in order):
+        1. Parse complete JSON objects/arrays
+        2. Extract key-value pairs ("key: value", "key = value")
+        3. Extract numbered lists ("1. item", "2. item")
+        4. Extract comma-separated values
+
         Args:
             result: Result from MultiRoundExecutor
 
@@ -233,34 +239,125 @@ class APIExecutor(ToolExecutor):
         """
         final_answer = result.get("final_answer", "")
 
-        # Try to parse as JSON
+        if not final_answer or not final_answer.strip():
+            return None
+
+        # Strategy 1: Try to parse as complete JSON
         try:
-            # Look for JSON in final answer
-            json_match = re.search(r'\{[^}]+\}', final_answer)
+            # Look for JSON object or array
+            # Match balanced braces/brackets
+            json_match = re.search(r'(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}|\[[^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*\])', final_answer, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group(0))
+                parsed = json.loads(json_match.group(1))
+                if isinstance(parsed, dict):
+                    return parsed
+                elif isinstance(parsed, list):
+                    return {"items": parsed}
         except json.JSONDecodeError:
             pass
 
-        # Try to extract key-value pairs
-        # Pattern: "key: value" or "key = value"
+        # Strategy 2: Extract key-value pairs
+        # Patterns: "key: value", "key = value", "key is value"
         data = {}
-        for match in re.finditer(r'(\w+)[:=]\s*([^\n,]+)', final_answer):
+
+        # Pattern 1: "key: value" or "key = value"
+        for match in re.finditer(r'(\w+)\s*[:=]\s*([^\n,]+)', final_answer):
             key = match.group(1)
             value = match.group(2).strip()
+            data[key] = self._parse_value(value)
 
-            # Try to parse value as number
-            try:
-                value = int(value)
-            except ValueError:
-                try:
-                    value = float(value)
-                except ValueError:
-                    pass  # Keep as string
+        # Pattern 2: "key is value"
+        for match in re.finditer(r'(\w+)\s+is\s+([^\n,.]+)', final_answer):
+            key = match.group(1)
+            value = match.group(2).strip()
+            if key not in data:  # Don't override existing
+                data[key] = self._parse_value(value)
 
-            data[key] = value
+        # Strategy 3: Extract numbered/bulleted lists
+        # Pattern: "1. item", "2. item" or "- item", "* item"
+        list_items = []
+
+        # Numbered lists
+        for match in re.finditer(r'^\s*\d+\.\s*(.+)$', final_answer, re.MULTILINE):
+            list_items.append(match.group(1).strip())
+
+        # Bulleted lists
+        if not list_items:
+            for match in re.finditer(r'^\s*[-*]\s*(.+)$', final_answer, re.MULTILINE):
+                list_items.append(match.group(1).strip())
+
+        if list_items:
+            data["items"] = list_items
+
+        # Strategy 4: Extract comma-separated values (if mentioned)
+        # Look for patterns like "users: alice, bob, charlie"
+        csv_match = re.search(r'(\w+):\s*([a-zA-Z0-9_]+(?:\s*,\s*[a-zA-Z0-9_]+)+)', final_answer)
+        if csv_match:
+            key = csv_match.group(1)
+            values_str = csv_match.group(2)
+            values = [v.strip() for v in values_str.split(',')]
+            data[key] = values
+
+        # Strategy 5: Extract counts/numbers
+        # Pattern: "found X items", "X users", "total: X"
+        count_patterns = [
+            r'found\s+(\d+)\s+(\w+)',
+            r'(\d+)\s+(\w+)(?:\s+found)?',
+            r'total\s*[:=]?\s*(\d+)',
+            r'count\s*[:=]?\s*(\d+)'
+        ]
+
+        for pattern in count_patterns:
+            match = re.search(pattern, final_answer, re.IGNORECASE)
+            if match:
+                if len(match.groups()) == 2:
+                    count = int(match.group(1))
+                    item_name = match.group(2)
+                    data[f"{item_name}_count"] = count
+                else:
+                    data["count"] = int(match.group(1))
+                break
 
         return data if data else None
+
+    def _parse_value(self, value_str: str) -> Any:
+        """
+        Parse value string to appropriate type
+
+        Args:
+            value_str: String value to parse
+
+        Returns:
+            Parsed value (int, float, bool, list, or string)
+        """
+        value_str = value_str.strip()
+
+        # Boolean
+        if value_str.lower() in ('true', 'yes'):
+            return True
+        if value_str.lower() in ('false', 'no'):
+            return False
+
+        # Number
+        try:
+            if '.' in value_str:
+                return float(value_str)
+            else:
+                return int(value_str)
+        except ValueError:
+            pass
+
+        # List (comma-separated in brackets)
+        if value_str.startswith('[') and value_str.endswith(']'):
+            try:
+                return json.loads(value_str)
+            except json.JSONDecodeError:
+                # Try manual parsing
+                inner = value_str[1:-1]
+                return [v.strip().strip('"\'') for v in inner.split(',')]
+
+        # String
+        return value_str.strip('"\'')  # Remove quotes if present
 
     async def shutdown(self) -> None:
         """Clean up resources"""

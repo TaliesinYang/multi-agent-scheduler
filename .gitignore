@@ -54,3 +54,25 @@ docs/_build/
 
 # External repositories (testing/reference)
 gemini-cli-temp/
+
+# Day 7: Runtime files and temporary data
+*.db
+*.sqlite
+*.sqlite3
+test_*.log
+.test_backup
+*.md.test_backup
+
+# Day 7: Temporary test scripts
+query_*.py
+analyze_*.py
+debug_*.py
+simple_test.py
+test_env.py
+test_import.py
+cli_parallel_test.py
+cli_real_test.py
+multi_agent_cli.py
+
+# Day 7: MCP local configuration (contains local paths)
+.mcp.json

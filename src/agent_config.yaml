@@ -9,7 +9,8 @@ version: "1.0"
 meta_agent:
   # Which agent to use for task decomposition
   # Options: claude, codex, gemini
-  agent_type: "gemini"  # Default: claude (best for complex reasoning and task breakdown)
+  agent_type: "claude"  # Default: claude (best for complex reasoning and task breakdown)
+  # agent_type: "gemini"  # Faster but less sophisticated
 
   # Alternative options:
   # agent_type: "codex"   # Use Codex for decomposition (good for code-focused tasks)
@@ -21,7 +22,7 @@ meta_agent:
 agents:
   # Claude - Best for complex reasoning and system design
   claude:
-    enabled: false
+    enabled: true
     cli_command: "claude"
     description: "Claude Sonnet 4 - Complex reasoning and system design"
 
@@ -55,7 +56,7 @@ agents:
 
   # Codex - Best for code generation
   codex:
-    enabled: false
+    enabled: true
     cli_command: "codex"
     description: "GitHub Codex - Specialized code generation"
 

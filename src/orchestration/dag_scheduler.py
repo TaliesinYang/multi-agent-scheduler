@@ -42,9 +42,11 @@ if TYPE_CHECKING:
 try:
     from .executor import ToolExecutor, TaskResult
     from .dependency_injector import DependencyInjector
+    from .meta_agent import MetaAgent
 except ImportError:
     from executor import ToolExecutor, TaskResult
     from dependency_injector import DependencyInjector
+    from meta_agent import MetaAgent
 
 
 @dataclass
@@ -127,7 +129,8 @@ class DAGScheduler:
         self,
         executor: ToolExecutor,
         default_agent: str = "claude",
-        verbose: bool = True
+        verbose: bool = True,
+        use_meta_agent: bool = True
     ):
         """
         Initialize DAG scheduler
@@ -136,10 +139,15 @@ class DAGScheduler:
             executor: ToolExecutor instance (CLI or API)
             default_agent: Default agent name for tasks
             verbose: Whether to print execution progress
+            use_meta_agent: Whether to enable MetaAgent for dynamic prompt generation
         """
         self.executor = executor
         self.default_agent = default_agent
         self.verbose = verbose
+        self.use_meta_agent = use_meta_agent
+
+        # Initialize MetaAgent if enabled
+        self.meta_agent = MetaAgent(verbose=verbose) if use_meta_agent else None
 
     def build_dependency_graph(self, tasks: List['Task']) -> Dict[str, List[str]]:
         """
@@ -272,6 +280,22 @@ class DAGScheduler:
                 print(f"  🔗 Dependency injection enabled for {len(input_mappings)} tasks")
 
         start_time = time.time()
+
+        # Step 1: Apply MetaAgent preprocessing (Day 7 feature)
+        if self.meta_agent:
+            if self.verbose:
+                print(f"\n  🤖 [META AGENT] Preprocessing tasks with dynamic prompt generation...")
+
+            # MetaAgent analyzes complexity and generates appropriate prompts
+            # Note: add_summary=False because we handle summary separately in evaluation
+            tasks = self.meta_agent.process_tasks(
+                tasks,
+                input_mappings=input_mappings,
+                add_summary=False  # Don't auto-add summary in DAG execution
+            )
+
+            if self.verbose:
+                print(f"  ✓ MetaAgent preprocessing complete")
 
         # Create dependency injector if input_mappings provided
         injector = DependencyInjector(verbose=self.verbose) if input_mappings else None

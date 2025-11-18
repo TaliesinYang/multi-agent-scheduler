@@ -69,14 +69,30 @@ experiments/
 ### Results and Documentation
 ```
 results/
-└── end_to_end/                     # Day 7 evaluation results
-    ├── EXPERIMENT_REPORT.md        # Complete evaluation report
-    ├── tables/                     # Publication-ready tables
-    └── raw_data/                   # JSON + CSV data
+├── end_to_end/                     # Day 7 evaluation results
+│   ├── EXPERIMENT_REPORT.md        # Complete evaluation report
+│   ├── tables/                     # Publication-ready tables
+│   └── raw_data/                   # JSON + CSV data
+│
+└── paper_data/                     # Paper data and analysis
+    ├── mock/                       # Mock benchmark results
+    ├── real/                       # Real experiment data
+    ├── comparison/                 # Comparison analyses
+    └── cli_performance/            # CLI performance data
 
 docs/
 ├── NEXT_SESSION_PLAN.md            # Development roadmap
-└── PROJECT_CLEANUP_PLAN.md         # Project organization plan
+├── COMPLETE_CLEANUP_PLAN.md        # Complete cleanup plan
+└── templates/                      # Paper section templates
+    └── section_4_template.md       # Section 4 template
+```
+
+### Archived Components
+```
+archived/                           # Experimental features (not in git)
+├── demos/                          # Demo scripts
+├── monitoring/                     # Prometheus/Grafana configs
+└── web_ui/                         # Flask web interface
 ```
 
 ### Official Tests

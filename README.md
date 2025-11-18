@@ -227,7 +227,9 @@ See LICENSE file for details.
 
 ---
 
-## System Architecture (Original)
+## System Architecture
+
+### Simplified Architecture (3-Layer Overview)
 
 ```
        User Input: "Build a website"
@@ -241,7 +243,7 @@ See LICENSE file for details.
                   │ [Subtasks: DB, API, Frontend, Tests]
                   ▼
    ┌─────────────────────────────────────────────┐
-   │         DAG Scheduler (Day 6-7)             │
+   │         DAG Scheduler                       │
    ├─────────────────────────────────────────────┤
    │   - Dependency analysis                     │
    │   - Kahn's topological sort                 │
@@ -256,6 +258,79 @@ See LICENSE file for details.
    └─────────┘          └─────────┘  └─────────┘
      (Serial)           (Parallel)    (Parallel)
 ```
+
+### Detailed Architecture (4-Layer Implementation)
+
+The actual implementation uses a more granular 4-layer architecture that separates orchestration logic from execution details:
+
+```
+┌─────────────────────────────────────────────────┐
+│           User Input Layer                      │
+│  - Natural language task descriptions           │
+│  - CLI commands (multi_agent_cli.py)            │
+│  - AgentBench task definitions                  │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│           Meta-Agent Layer                      │
+│  - Task decomposition (meta_agent.py)           │
+│  - Complexity analysis (complexity_analyzer.py) │
+│  - Prompt template generation                   │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│        Orchestration Layer                      │
+│  - DAG scheduling (dag_scheduler.py)            │
+│  - Dependency management & topological sort     │
+│  - Batch parallelization strategy               │
+│  - Result aggregation (DAGResult)               │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│          Execution Layer                        │
+│  - CLI tool invocation (cli_executor.py)        │
+│  - Subprocess management (asyncio)              │
+│  - Output parsing & success detection           │
+│  - Timeout handling (600s default)              │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│            Agent Layer                          │
+│  - Claude CLI Agent (claude)                    │
+│  - Gemini Agent (gemini)                        │
+│  - Codex Agent (codex)                          │
+│  - OpenAI API Agent (optional)                  │
+│  File: src/agents.py                            │
+└─────────────────────────────────────────────────┘
+```
+
+### Layer Responsibilities & Code Mapping
+
+| Layer | Core Responsibilities | Key Files | OS Concepts |
+|-------|----------------------|-----------|-------------|
+| **User Input** | Interface abstraction | `multi_agent_cli.py` | User space |
+| **Meta-Agent** | Task analysis & decomposition | `src/orchestration/meta_agent.py`<br>`src/orchestration/complexity_analyzer.py` | Process creation |
+| **Orchestration** | Scheduling & dependency management | `src/orchestration/dag_scheduler.py`<br>`src/orchestration/dependency_injector.py` | Process scheduling |
+| **Execution** | Resource allocation & tool invocation | `src/orchestration/cli_executor.py`<br>`src/orchestration/executor.py` | Process management |
+| **Agent** | Task execution & result generation | `src/agents.py` | Process/Thread execution |
+
+### Data Flow
+
+```
+Task Definition (User)
+    → Task Analysis (Meta-Agent)
+    → Dependency Graph (Orchestration)
+    → Batch Execution (Execution)
+    → Agent Calls (Agent)
+    → TaskResult Collection
+    → DAGResult Aggregation
+    → User Output
+```
+
+**Key Data Structures:**
+- `Task`: Task definition with dependencies
+- `TaskResult`: Individual task execution result
+- `DAGResult`: Complete execution summary with statistics
 
 ---
 

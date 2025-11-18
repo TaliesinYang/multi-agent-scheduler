@@ -52,6 +52,11 @@ htmlcov/
 docs/_build/
 *.orig
 
+# Personal paper drafts
+docs/paper.md
+docs/section_7_8_answers.md
+docs/section_7_8_answers_en.md
+
 # External repositories (testing/reference)
 gemini-cli-temp/
 

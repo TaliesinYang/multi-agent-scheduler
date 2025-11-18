@@ -42,7 +42,7 @@ except ImportError:
 class PaperDataGenerator:
     """论文数据生成器"""
 
-    def __init__(self, output_dir: str = "paper_data"):
+    def __init__(self, output_dir: str = "../../results/paper_data"):
         self.output_dir = Path(output_dir)
         self.mock_dir = self.output_dir / "mock"
         self.real_dir = self.output_dir / "real"
@@ -578,7 +578,7 @@ When comparing with academic benchmarks:
 
 If you need clarification on any data:
 1. Check `key_numbers.md` for quick reference
-2. Review section templates in `../paper_templates/`
+2. Review section templates in `../../docs/templates/`
 3. Ask the person who ran the tests
 
 ---

@@ -14,8 +14,9 @@ import json
 from pathlib import Path
 from typing import Dict, List, Any
 
-# Configuration
-RESULTS_DIR = Path("results/end_to_end")
+# Configuration (fixed paths for moved script)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+RESULTS_DIR = PROJECT_ROOT / "results" / "end_to_end"
 BACKUP_DIR = RESULTS_DIR / "backup_60s_timeout"
 TABLES_DIR = RESULTS_DIR / "tables"
 

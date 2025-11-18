@@ -13,10 +13,16 @@ Complete workflow testing:
 This validates the COMPLETE Day 7 architecture.
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path (moved to experiments/day7_evaluation/)
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 import asyncio
 import json
 import time
-from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
@@ -91,8 +97,9 @@ class EndToEndEvaluator:
         )
         print("  ✓ DAG Scheduler initialized")
 
-        # Results storage
-        self.results_dir = Path("results/end_to_end")
+        # Results storage (fixed path for moved script)
+        project_root = Path(__file__).parent.parent.parent
+        self.results_dir = project_root / "results" / "end_to_end"
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
         print("✅ Evaluator ready\n")
@@ -612,7 +619,9 @@ def load_agentbench_tasks(group_id: Optional[str] = None) -> List[Dict]:
     Returns:
         List of dependency groups from AgentBench
     """
-    agentbench_file = Path(__file__).parent / "AgentBench" / "dependency_tasks.json"
+    # Fixed path: moved to experiments/day7_evaluation/, AgentBench in project root
+    project_root = Path(__file__).parent.parent.parent
+    agentbench_file = project_root / "AgentBench" / "dependency_tasks.json"
 
     if not agentbench_file.exists():
         raise FileNotFoundError(f"AgentBench tasks not found: {agentbench_file}")

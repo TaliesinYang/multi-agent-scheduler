@@ -13,9 +13,10 @@ import zipfile
 from pathlib import Path
 from datetime import datetime
 
-# Configuration
-RESULTS_DIR = Path("results/end_to_end")
-OUTPUT_ZIP = Path("Multi_Agent_Scheduler_Evaluation_Results.zip")
+# Configuration (fixed paths for moved script)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+RESULTS_DIR = PROJECT_ROOT / "results" / "end_to_end"
+OUTPUT_ZIP = PROJECT_ROOT / "Multi_Agent_Scheduler_Evaluation_Results.zip"
 
 # Files to include
 FILES_TO_PACKAGE = [

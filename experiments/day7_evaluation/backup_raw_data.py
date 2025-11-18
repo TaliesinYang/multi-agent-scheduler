@@ -15,8 +15,9 @@ from pathlib import Path
 from datetime import datetime
 import sys
 
-# Configuration
-RESULTS_DIR = Path("results/end_to_end")
+# Configuration (fixed paths for moved script)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+RESULTS_DIR = PROJECT_ROOT / "results" / "end_to_end"
 RAW_DATA_DIR = RESULTS_DIR / "raw_data"
 
 # Test groups

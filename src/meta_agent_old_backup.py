@@ -9,7 +9,7 @@ import json
 from typing import List, Dict, Optional, Any
 from anthropic import AsyncAnthropic
 from src.scheduler import Task
-from src.complexity_analyzer import get_analyzer, ComplexityScore
+from src.orchestration.complexity_analyzer import get_analyzer, ComplexityScore
 
 
 class MetaAgent:

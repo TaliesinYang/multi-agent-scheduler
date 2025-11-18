@@ -72,9 +72,9 @@ test_env.py
 test_import.py
 cli_parallel_test.py
 cli_real_test.py
-multi_agent_cli.py
+# Note: multi_agent_cli.py is the main CLI entry point - should be tracked
 
-# Day 7: MCP local configuration (contains local paths)
+# Day 7: MCP local configuration (contains local paths and API keys)
 .mcp.json
 
 # Day 7: Benchmark and checkpoint data
@@ -90,3 +90,23 @@ temp_tests/
 *~
 backup_*/
 archived/
+
+# Phase 3: Large external dependencies
+AgentBench/
+gemini-cli-fork/
+
+# Phase 3: Generated output and results
+results/
+reports/
+benchmark_results/
+output/
+*.dot
+*_visualization.html
+*_with_results.html
+
+# Phase 3: Temporary test files
+config.txt
+health_check.txt
+urls.txt
+test_db_query.sh
+test_gemini_config.sh

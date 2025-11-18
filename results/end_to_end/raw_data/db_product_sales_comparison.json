@@ -1,0 +1,22 @@
+{
+  "test_name": "db_product_sales",
+  "user_input": "AgentBench: Find high-sales products and analyze their ratings",
+  "complexity": "agentbench",
+  "task_count": 2,
+  "sequential": {
+    "total_time": 63.59775114059448,
+    "success_rate": 100.0,
+    "completed": 2,
+    "failed": 0
+  },
+  "hybrid": {
+    "total_time": 91.13837838172913,
+    "success_rate": 100.0,
+    "completed": 0,
+    "failed": 0,
+    "batches": 0,
+    "speedup": 0.6978152592776895
+  },
+  "best_mode": "Sequential",
+  "timestamp": "2025-11-16T23:12:11.660794"
+}

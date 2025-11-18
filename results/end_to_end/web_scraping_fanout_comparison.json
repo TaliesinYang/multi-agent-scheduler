@@ -1,0 +1,22 @@
+{
+  "test_name": "web_scraping_fanout",
+  "user_input": "AgentBench: Parallel web scraping and data aggregation (12 tasks, 5 batches, large fan-out)",
+  "complexity": "agentbench",
+  "task_count": 12,
+  "sequential": {
+    "total_time": 400.99650406837463,
+    "success_rate": 100.0,
+    "completed": 12,
+    "failed": 0
+  },
+  "hybrid": {
+    "total_time": 305.5420002937317,
+    "success_rate": 100.0,
+    "completed": 0,
+    "failed": 0,
+    "batches": 0,
+    "speedup": 1.3124104171697446
+  },
+  "best_mode": "Hybrid",
+  "timestamp": "2025-11-16T23:35:28.361037"
+}

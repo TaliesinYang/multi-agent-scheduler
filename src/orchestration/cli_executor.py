@@ -222,8 +222,19 @@ class CLIExecutor(ToolExecutor):
             metadata = {
                 "cli_command": " ".join(cmd[:3]),  # Don't include full prompt
                 "exit_code": process.returncode,
-                "has_stderr": bool(stderr_text.strip())
+                "has_stderr": bool(stderr_text.strip()),
+                "detection_method": "final_answer" if success else "none"
             }
+
+            # Multi-strategy success detection (fallback if FINAL_ANSWER not found)
+            if not success:
+                success, detection_method = self._detect_success_fallback(
+                    task_prompt, output, process.returncode, stderr_text
+                )
+                if success:
+                    metadata["detection_method"] = detection_method
+                    # Use full output as final_answer for fallback methods
+                    final_answer = output[:200] if output else ""
 
             if stderr_text.strip():
                 metadata["stderr"] = stderr_text[:500]  # Truncate stderr
@@ -275,6 +286,64 @@ class CLIExecutor(ToolExecutor):
         if self.cli_tool:
             await self.cli_tool.close()
         self.initialized = False
+
+    def _detect_success_fallback(
+        self,
+        task_prompt: str,
+        output: str,
+        exit_code: int,
+        stderr: str
+    ) -> tuple[bool, str]:
+        """
+        Multi-strategy success detection (fallback when FINAL_ANSWER not found)
+
+        Strategies (in order):
+        1. File creation detection (for coding tasks)
+        2. Clean exit detection (exit_code 0, no stderr, meaningful output)
+
+        Args:
+            task_prompt: The task prompt text
+            output: Command output
+            exit_code: Process exit code
+            stderr: Standard error output
+
+        Returns:
+            (success: bool, detection_method: str)
+        """
+        from pathlib import Path
+
+        # Strategy 1: File creation detection (for coding tasks)
+        # Look for "create", "write", "generate" in prompt
+        if any(keyword in task_prompt.lower() for keyword in ["create", "write", "generate", "add"]):
+            # Extract potential filenames from prompt
+            # Match patterns like "file.py", 'file.js', "script.sh", etc.
+            import re
+            filenames = re.findall(
+                r'["\']([^"\']+\.(?:py|js|ts|html|css|json|csv|txt|md|sh|sql))["\']',
+                task_prompt
+            )
+
+            if filenames:
+                # Check if ALL mentioned files exist
+                existing_files = [f for f in filenames if Path(f).exists()]
+                if existing_files:
+                    # At least some files were created
+                    return (True, "file_created")
+
+        # Strategy 2: Clean exit with meaningful output
+        # Criteria:
+        # - Exit code 0
+        # - No stderr (or only minor warnings)
+        # - Output length > 50 chars (not just empty/trivial)
+        if exit_code == 0:
+            has_stderr = bool(stderr.strip())
+            has_meaningful_output = len(output.strip()) > 50
+
+            if not has_stderr and has_meaningful_output:
+                return (True, "clean_exit")
+
+        # No fallback strategy matched
+        return (False, "none")
 
     def _extract_structured_data(self, text: str) -> Optional[Dict[str, Any]]:
         """

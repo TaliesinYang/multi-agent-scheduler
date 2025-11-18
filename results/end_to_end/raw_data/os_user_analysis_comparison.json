@@ -1,0 +1,22 @@
+{
+  "test_name": "os_user_analysis",
+  "user_input": "AgentBench: Extract users and analyze their files",
+  "complexity": "agentbench",
+  "task_count": 3,
+  "sequential": {
+    "total_time": 100.04361248016357,
+    "success_rate": 100.0,
+    "completed": 3,
+    "failed": 0
+  },
+  "hybrid": {
+    "total_time": 63.695761919021606,
+    "success_rate": 100.0,
+    "completed": 0,
+    "failed": 0,
+    "batches": 0,
+    "speedup": 1.570647865196308
+  },
+  "best_mode": "Hybrid",
+  "timestamp": "2025-11-16T23:15:05.415410"
+}

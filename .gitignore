@@ -76,3 +76,17 @@ multi_agent_cli.py
 
 # Day 7: MCP local configuration (contains local paths)
 .mcp.json
+
+# Day 7: Benchmark and checkpoint data
+.benchmarks/
+.checkpoints/
+
+# Day 7: Temporary directories
+temp/
+temp_tests/
+
+# Day 7: Backup and archive
+*.bak
+*~
+backup_*/
+archived/

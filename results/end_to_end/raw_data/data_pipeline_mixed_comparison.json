@@ -1,0 +1,22 @@
+{
+  "test_name": "data_pipeline_mixed",
+  "user_input": "AgentBench: Complex multi-stage data processing pipeline (16 tasks, 6 batches, mixed DAG)",
+  "complexity": "agentbench",
+  "task_count": 16,
+  "sequential": {
+    "total_time": 791.6129858493805,
+    "success_rate": 100.0,
+    "completed": 16,
+    "failed": 0
+  },
+  "hybrid": {
+    "total_time": 598.5482029914856,
+    "success_rate": 100.0,
+    "completed": 0,
+    "failed": 0,
+    "batches": 0,
+    "speedup": 1.3225551123417896
+  },
+  "best_mode": "Hybrid",
+  "timestamp": "2025-11-16T23:58:48.545732"
+}

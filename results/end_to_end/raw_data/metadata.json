@@ -1,0 +1,57 @@
+{
+  "experiment_name": "Multi-Agent Scheduler End-to-End Evaluation",
+  "experiment_date": "2025-11-16",
+  "timeout_configuration": {
+    "current": "600s (10 minutes)",
+    "previous": "60s (1 minute)",
+    "reason": "60s caused 14.6% task failures; 600s achieved 100% success"
+  },
+  "test_framework": "AgentBench Dependency Tasks",
+  "execution_modes": {
+    "sequential": "Baseline execution (one task at a time)",
+    "hybrid": "DAG-based parallel scheduling (Kahn's algorithm)"
+  },
+  "test_groups": {
+    "total": 5,
+    "linear": 2,
+    "fan_out": 2,
+    "mixed": 1
+  },
+  "total_tasks": 41,
+  "success_rate": {
+    "sequential": "100% (41/41 tasks)",
+    "hybrid": "100% (41/41 tasks)"
+  },
+  "tools": {
+    "meta_agent": "Claude CLI (sonnet-4.5)",
+    "dag_scheduler": "Custom DAG scheduler with Kahn's topological sort",
+    "cli_executor": "Subprocess-based execution with FINAL_ANSWER detection"
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux WSL2",
+    "experiment_duration": "~45 minutes"
+  },
+  "key_findings": {
+    "optimal_threshold": ">=12 tasks for consistent Hybrid mode advantage",
+    "average_speedup": "1.23\u00d7 overall (1.12\u00d7 average across 5 groups)",
+    "total_time_saved": "296.64 seconds",
+    "best_speedup": "1.57\u00d7 (os_user_analysis, 3 tasks)",
+    "regression_cases": [
+      "db_product_sales (0.70\u00d7, 2 tasks)",
+      "os_system_health_fanout (0.997\u00d7, 8 tasks)"
+    ]
+  },
+  "limitations": {
+    "single_run": "Each test group executed once (no statistical validation)",
+    "task_type": "OS and Database interaction tasks (I/O-bound)",
+    "agent_type": "Claude CLI only (not tested with Gemini, GPT, etc.)"
+  },
+  "data_files": {
+    "experiment_report": "EXPERIMENT_REPORT.md",
+    "tables": "tables/*.md (5 publication tables)",
+    "raw_json": "raw_data/*.json (5 comparison files)",
+    "csv_summary": "raw_data/summary.csv"
+  },
+  "generated_at": "2025-11-17T11:16:11.076932"
+}

@@ -1,0 +1,22 @@
+{
+  "test_name": "os_system_health_fanout",
+  "user_input": "AgentBench: Comprehensive system health check with parallel analysis (8 tasks, 4 batches, fan-out structure)",
+  "complexity": "agentbench",
+  "task_count": 8,
+  "sequential": {
+    "total_time": 244.50982570648193,
+    "success_rate": 100.0,
+    "completed": 8,
+    "failed": 0
+  },
+  "hybrid": {
+    "total_time": 245.19368624687195,
+    "success_rate": 100.0,
+    "completed": 0,
+    "failed": 0,
+    "batches": 0,
+    "speedup": 0.9972109373986838
+  },
+  "best_mode": "Sequential",
+  "timestamp": "2025-11-16T23:23:28.475575"
+}

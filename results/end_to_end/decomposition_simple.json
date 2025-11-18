@@ -1,0 +1,59 @@
+{
+  "user_input": "Create a Python script that reads a CSV file and prints the top 10 rows with column headers",
+  "complexity": "simple",
+  "decompose_time": 19.91766595840454,
+  "task_count": 6,
+  "tasks": [
+    {
+      "id": "task1",
+      "prompt": "Create a simple CSV test file with sample data (5 columns, 15 rows) for testing",
+      "task_type": "simple",
+      "priority": 2,
+      "depends_on": []
+    },
+    {
+      "id": "task2",
+      "prompt": "Write Python script to read CSV file using csv module and store data in list",
+      "task_type": "coding",
+      "priority": 1,
+      "depends_on": []
+    },
+    {
+      "id": "task3",
+      "prompt": "Add function to extract and print column headers from CSV",
+      "task_type": "coding",
+      "priority": 1,
+      "depends_on": [
+        "task2"
+      ]
+    },
+    {
+      "id": "task4",
+      "prompt": "Add function to print first 10 data rows with formatted output",
+      "task_type": "coding",
+      "priority": 1,
+      "depends_on": [
+        "task3"
+      ]
+    },
+    {
+      "id": "task5",
+      "prompt": "Add error handling for file not found and empty CSV scenarios",
+      "task_type": "coding",
+      "priority": 2,
+      "depends_on": [
+        "task4"
+      ]
+    },
+    {
+      "id": "task6",
+      "prompt": "Test script with sample CSV file and verify output displays correctly",
+      "task_type": "general",
+      "priority": 3,
+      "depends_on": [
+        "task1",
+        "task5"
+      ]
+    }
+  ]
+}

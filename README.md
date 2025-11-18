@@ -229,39 +229,7 @@ See LICENSE file for details.
 
 ## System Architecture
 
-### Simplified Architecture (3-Layer Overview)
-
-```
-       User Input: "Build a website"
-              │
-              ▼
-   ┌──────────────────────────────┐
-   │    Meta-Agent                 │ ◄── AI-powered task decomposition
-   │    - Complexity analysis      │
-   │    - Task decomposition       │
-   └──────────────┬───────────────┘
-                  │ [Subtasks: DB, API, Frontend, Tests]
-                  ▼
-   ┌─────────────────────────────────────────────┐
-   │         DAG Scheduler                       │
-   ├─────────────────────────────────────────────┤
-   │   - Dependency analysis                     │
-   │   - Kahn's topological sort                 │
-   │   - Parallel execution planning             │
-   └─────────────────┬───────────────────────────┘
-                     │
-         ┌───────────┴──────────┬──────────┐
-         ▼                      ▼          ▼
-   ┌─────────┐          ┌─────────┐  ┌─────────┐
-   │ Claude  │          │ Gemini  │  │ Claude  │
-   │ Task 1  │          │ Task 2  │  │ Task 3  │
-   └─────────┘          └─────────┘  └─────────┘
-     (Serial)           (Parallel)    (Parallel)
-```
-
-### Detailed Architecture (4-Layer Implementation)
-
-The actual implementation uses a more granular 4-layer architecture that separates orchestration logic from execution details:
+The system implements a 4-layer architecture that clearly separates orchestration logic from execution details:
 
 ```
 ┌─────────────────────────────────────────────────┐

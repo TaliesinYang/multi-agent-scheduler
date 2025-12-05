@@ -174,7 +174,7 @@ class RobustCLIAgent(BaseAgent):
         """
         super().__init__(name, max_concurrent, workspace)
         self.cli_command = cli_command
-        self.default_timeout = 600.0  # 10 minutes timeout for complex tasks
+        self.default_timeout = 3600.0  # 60 minutes timeout for complex demos
 
     async def call(
         self,
@@ -574,7 +574,7 @@ class CodexExecAgent(BaseAgent):
             workspace: Working directory for file operations
         """
         super().__init__("Codex-CLI", max_concurrent, workspace)
-        self.default_timeout = 600.0  # 10 minutes timeout
+        self.default_timeout = 3600.0  # 60 minutes timeout for complex demos
 
     async def call(
         self,

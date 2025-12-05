@@ -1,0 +1,15 @@
+{
+  "checkpoint_id": "complete_demo_1_1763977694762",
+  "execution_id": "complete_demo_1",
+  "timestamp": 1763977694.762617,
+  "status": "running",
+  "current_node": null,
+  "completed_nodes": [],
+  "pending_nodes": [],
+  "workflow_state": {},
+  "task_results": {},
+  "metadata": {
+    "graph_id": "complete_demo"
+  },
+  "error": null
+}

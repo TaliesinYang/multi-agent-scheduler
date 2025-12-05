@@ -1,0 +1,27 @@
+{
+  "checkpoint_id": "complete_demo_1_1763977694968",
+  "execution_id": "complete_demo_1",
+  "timestamp": 1763977694.968616,
+  "status": "completed",
+  "current_node": null,
+  "completed_nodes": [
+    "start",
+    "analyze",
+    "approve_execution",
+    "calculate",
+    "end"
+  ],
+  "pending_nodes": [],
+  "workflow_state": {
+    "complexity": "medium",
+    "estimated_time": 2.5,
+    "approve_execution_approved": true,
+    "approve_execution_response": true,
+    "score": 95.0
+  },
+  "task_results": {},
+  "metadata": {
+    "graph_id": "complete_demo"
+  },
+  "error": null
+}
